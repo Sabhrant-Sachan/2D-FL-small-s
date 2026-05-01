@@ -31,7 +31,7 @@ function bvec(d::abstractdomain,dp::domprop,s::Float64,f!::Function
     zy = repeat(z', n₂, 1)
 
     # Initializing b vector
-    b = zeros(Float64, M*Np + Nd)
+    b = zeros(Float64, M*Np + Nd + 1) # + 1 for the ∫u variable
 
     # modified weights
 
