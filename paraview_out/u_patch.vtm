@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<VTKFile type="vtkMultiBlockDataSet" version="1.0" byte_order="LittleEndian">
+  <vtkMultiBlockDataSet>
+    <DataSet index="0" file="u_patch_1.vts"/>
+    <DataSet index="1" file="u_patch_2.vts"/>
+    <DataSet index="2" file="u_patch_3.vts"/>
+    <DataSet index="3" file="u_patch_4.vts"/>
+    <DataSet index="4" file="u_patch_5.vts"/>
+  </vtkMultiBlockDataSet>
+</VTKFile>
