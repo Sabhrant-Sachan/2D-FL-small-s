@@ -13,6 +13,10 @@ function Axintpth!(v::SubArray{Float64}, kM::Int, IntS::Matrix{Float64},
     # --------- Compute regular patch (kM) ---------
     # Zx, Zy: images of Chebyshev grid (zx,zy) on patch kM
     # Determinant of map and distance function on regular patch
+    Lₚ = M * Np
+    Lₚₘ = Lₚ + 1
+    Lₚₙ = Lₚ + Mbd * N
+
     mapxy_Dmap!(Zx, Zy, DJ, d, zx, zy, kM) # nr×nr Zx, Zy, DJ
 
     dfunc!(Df, d, kM, zt, s)  # zt = 1-zx
@@ -23,8 +27,14 @@ function Axintpth!(v::SubArray{Float64}, kM::Int, IntS::Matrix{Float64},
         end
     end
 
+    mul!(Grgtmp, idctrg', Wrg)  # N × nr
+    mul!(Grg, Grgtmp, idctrg)   # N × N
+
+    @inbounds for jj in 1:Np
+        v[Lₚₙ + 1, jj] = Grg[jj]
+    end
+
     # --------- interior rows  ---------
-    Lₚ = M * Np
 
     @inbounds for row in 1:Lₚ
 
@@ -88,7 +98,7 @@ function Axintpth!(v::SubArray{Float64}, kM::Int, IntS::Matrix{Float64},
                         dx = x1 - Zx[i, j]
                         dy = x2 - Zy[i, j]
                         r2 = dx * dx + dy * dy
-                        KIr[i, j] = Wrg[i, j] / (r2^s)
+                        KIr[i, j] = Wrg[i, j] * expm1(-s*log(r2))
                     end
                 end
 
@@ -103,56 +113,51 @@ function Axintpth!(v::SubArray{Float64}, kM::Int, IntS::Matrix{Float64},
     end
 
     #Integrals involved for boundary points when s is small
-    # --------- Part 2: boundary rows (if s < 0.5) ---------
-    if s < 0.5
+    # --------- Part 2: boundary rows ---------
 
-        Lₚₘ = Lₚ + 1
-        Lₚₙ = Lₚ + Mbd * N
+    @inbounds for row in Lₚₘ:Lₚₙ
 
-        @inbounds for row in Lₚₘ:Lₚₙ
+        x1 = dp.tgtpts[1, row]
+        x2 = dp.tgtpts[2, row]
 
-            x1 = dp.tgtpts[1, row]
-            x2 = dp.tgtpts[2, row]
+        Ikey = packkey(row, kM)
+        col = get(dp.hmap, Ikey, 0)
 
-            Ikey = packkey(row, kM)
-            col = get(dp.hmap, Ikey, 0)
+        if col != 0
 
-            if col != 0
+            @views NSI = IntS[:, col]
 
-                @views NSI = IntS[:, col]
+            @views IM = reshape(NSI, N, N)
 
-                @views IM = reshape(NSI, N, N)
+            @inbounds for jj in 1:Np
 
-                @inbounds for jj in 1:Np
+                q, r = divrem(jj - 1, N)
+                j1 = r + 1     # remainder
+                j2 = q + 1     # quotient
 
-                    q, r = divrem(jj - 1, N)
-                    j1 = r + 1     # remainder
-                    j2 = q + 1     # quotient
+                @views c1 = coeffs[:, j1]
+                @views c2 = coeffs[:, j2]
 
-                    @views c1 = coeffs[:, j1]
-                    @views c2 = coeffs[:, j2]
+                #mul!(CN, c1, c2')
+                #v[row, jj] = Cs * dot(CN, IM)
+                v[row, jj] = Cs * dot(c1, IM, c2)
+            end
 
-                    #mul!(CN, c1, c2')
-                    #v[row, jj] = Cs * dot(CN, IM)
-                    v[row, jj] = Cs * dot(c1, IM, c2)
+        else
+            @inbounds for j in 1:nr
+                @inbounds for i in 1:nr
+                    dx = x1 - Zx[i, j]
+                    dy = x2 - Zy[i, j]
+                    r2 = dx * dx + dy * dy
+                    KIr[i, j] = Wrg[i, j] * expm1(-s*log(r2))
                 end
+            end
 
-            else
-                @inbounds for j in 1:nr
-                    @inbounds for i in 1:nr
-                        dx = x1 - Zx[i, j]
-                        dy = x2 - Zy[i, j]
-                        r2 = dx * dx + dy * dy
-                        KIr[i, j] = Wrg[i, j] / (r2^s)
-                    end
-                end
+            mul!(Grgtmp, idctrg', KIr)  # N × nr
+            mul!(Grg, Grgtmp, idctrg)   # N × N
 
-                mul!(Grgtmp, idctrg', KIr)  # N × nr
-                mul!(Grg, Grgtmp, idctrg)   # N × N
-
-                @inbounds for jj in 1:Np
-                    v[row, jj] = Cs * Grg[jj]
-                end
+            @inbounds for jj in 1:Np
+                v[row, jj] = Cs * Grg[jj]
             end
         end
     end

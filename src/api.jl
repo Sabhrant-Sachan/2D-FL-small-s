@@ -75,17 +75,15 @@ Base.@kwdef struct Result
     uexv::Union{Vector{Float64},Nothing} = nothing
     err::Union{Vector{Float64},Nothing} = nothing
     errors::ErrorMetrics = ErrorMetrics()
-
     info::SolveInfo = SolveInfo()
 end
-
 
 #CoreResult holds only the essential computation outputs
 #that is, stuff to be benchmarked. Plots/error NOT benchmarked!
 Base.@kwdef struct CoreResult
     dp
     d
-    IntS
+    IntS::Union{Matrix{Float64},Nothing}
     A::Union{Matrix{Float64},Nothing}
     b::Vector{Float64}
     Uapp::Vector{Float64}
@@ -165,9 +163,9 @@ function _load_uexv(path::String)
 end
 
 function _assemble_matrix(dp, d, IntS, s, IV)
-    (; N, Np, M, Mbd) = IV.IV1
+    (; N, Np, Cs, M, Mbd, Mₛ, Fsvec) = IV.IV1
     Lpn = M * Np
-    Lp  = Lpn + Mbd * N
+    Lp  = Lpn + Mbd * N + 1
 
     A = zeros(Float64, Lp, Lp)
 
@@ -185,6 +183,10 @@ function _assemble_matrix(dp, d, IntS, s, IV)
         Axbdop!(v, k, d, dp, s, IV)
     end
 
+    for i in 1:Lₚ-1
+        A[i, Lp] = Cs * Fsvec[i] / Mₛ
+    end
+
     return A
 end
 
@@ -198,11 +200,7 @@ function solveFL_core(prob::Problem; opts::Options=Options())
     dp = domprop(prob.N, prob.δ, prob.δclsbd, d)
 
     # precomputations
-    if prob.s >= 0.5
-        IntS = precompsH(d, dp, prob.s, prob.p; n=n)
-    else
-        IntS = precompsL(d, dp, prob.s, prob.p; n=n)
-    end
+    IntS = precomps(d, dp, prob.s, prob.p; n=n)
 
     # RHS
     b = bvec(d, dp, prob.s, prob.f!)
@@ -214,9 +212,12 @@ function solveFL_core(prob::Problem; opts::Options=Options())
         #Matrix free approach is not for domains with holes in it
         IV = compress_vars(d, dp.N, prob.s, prob.p, prob.dₙₕ, δeff; matrix_form=false)
 
+        #Computation of Fₛ[1] vector
+        Fsv!(IV, d, dp, s, prob.p)
+
         Uapp = copy(b)
         (; N, Np, M, Mbd) = IV.IV1
-        Ltot = M * Np + Mbd * N
+        Ltot = M * Np + Mbd * N + 1
         restart_eff = min(opts.restart, Ltot)
 
         # The argument is an in-place function
@@ -240,11 +241,17 @@ function solveFL_core(prob::Problem; opts::Options=Options())
         conv = hasproperty(ch, :isconverged) ? ch.isconverged : false
         info = SolveInfo(solver=:gmres, iters=iters, converged=conv, reltol=opts.reltol)
 
+        mm = Uapp[end] / IV.IV1.Mₛ
+        @. Uapp = Uapp + mm
+
         return CoreResult(dp=dp, d=d, IntS=IntS, A=nothing, b=b, Uapp=Uapp, info=info)
 
     end
 
     IV = compress_vars(d, dp.N, prob.s, prob.p, prob.dₙₕ, δeff; matrix_form=true)
+
+    #Computation of Fₛ[1] vector
+    Fsv!(IV, d, dp, s, prob.p)
 
     # assemble matrix
     A = _assemble_matrix(dp, d, IntS, prob.s, IV)
@@ -264,50 +271,6 @@ function solveFL_core(prob::Problem; opts::Options=Options())
 
         else
             # There are HOLES!! in our domain
-            # The LU decomposition will have nh zero rows
-            # in matrix U. We now compute the Single layer potentials.
-            (; N, Np, M, Mbd) = IV.IV1
-
-            # bZ : The single layer potential on all the
-            #      target points (including the boundary).
-            #      It's a rectangular matrix of size
-            #      (Npat*N*N + Mbd*N) * nh where nh is the
-            #      number of holes and Npat*N*N + Mbd*N is total
-            #      number of target points.
-            bZ = SLPeval(d, dp)
-
-            if s >= 0.5
-                bZ[(1+M*Np):(M*Np+Mbd*N), 1:d.nh] .= 0.0
-            end
-
-            # Last Nh indices
-            indx = (M*Np+Mbd*N-d.nh+1):(M*Np+Mbd*N)
-
-            # QR decomposition method to solve for unknowns
-            F = qr(A)
-            Qa = Matrix(F.Q)
-            Ra = F.R
-            Pa = Matrix(F.P)
-
-            # matrix A is not needed now
-            A = nothing
-
-            B_SLP = Qa' * b
-
-            Beta_SLP = Qa' * bZ
-
-            # matrix Qa is not needed now
-            Qa = nothing
-
-            RNh = -(Beta_SLP[indx, :] \ B_SLP[indx])
-
-            beq = B_SLP + Beta_SLP * RNh
-
-            for j in 1:D.Nh
-                Ra[indx[j], indx[j]] = 1
-            end
-
-            Uapp = Pa * (Ra \ beq)
 
         end
 
@@ -316,7 +279,7 @@ function solveFL_core(prob::Problem; opts::Options=Options())
         if d.nh == 0
             Uapp = copy(b)
             (; N, Np, M, Mbd) = IV.IV1
-            Lp = M * Np + Mbd * N
+            Lp = M * Np + Mbd * N + 1
             restart_eff = min(opts.restart, Lp)
 
             Uapp, ch = gmres!(Uapp, A, b;
@@ -338,8 +301,10 @@ function solveFL_core(prob::Problem; opts::Options=Options())
         GC.gc()
     end
 
-    return CoreResult(dp=dp, d=d, IntS=IntS, A=A, b=b, Uapp=Uapp, info=info)
+    mm = Uapp[end]/IV.IV1.Mₛ 
+    @. Uapp = Uapp + mm
 
+    return CoreResult(dp=dp, d=d, IntS=IntS, A=A, b=b, Uapp=Uapp, info=info)
 
 end
 
@@ -349,7 +314,7 @@ end
 
 function solveFL_post(prob::Problem, core::CoreResult; opts::Options=Options())
     dp, d, A, Uapp = core.dp, core.d, core.A, core.Uapp
-
+ 
     # Evaluate solution on target points
     uappv = _compute_uappv(dp, d, Uapp, prob.N, prob.s)
 

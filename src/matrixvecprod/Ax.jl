@@ -7,9 +7,9 @@ function Ax!(v::AbstractVector{Float64}, u::AbstractVector{Float64}, IntS::Matri
     #      to solve the linear system Au=B without storing the matrix A.
 
     # INPUTS :
-    #     u - Input vector u of size M*Np+Mbd*N for which we compute Au
+    #     u - Input vector u of size M*Np+Mbd*N+1 for which we compute Au
     #         We will not mutate u. Mutation in vector v is fine. 
-    #     v - Input vector v of size M*Np+Mbd*N which is v=Au 
+    #     v - Input vector v of size M*Np+Mbd*N+1 which is v=Au 
     #  IntS - Precomputation matrix of size Np*(M*Np+Dp.Tnsp+Mbd*N) given using
     #         "precomps.jl" subroutine. Np is number of points per patch.
     #     d - An instance of the domain d
@@ -24,14 +24,16 @@ function Ax!(v::AbstractVector{Float64}, u::AbstractVector{Float64}, IntS::Matri
     #      Sabhrant Sachan
     #      Email : ssachan@caletch.edu
 
+    # Only additional constants needed are Mₛ, and Fₛ[1](x) vector (Fsvec)
     # --------- Unpack IV ---------
     (; IV1, IVr, IVbdth, IVbd, IVt, IVbt1, IVbt2, IVbdt1, IVbdt2, IVbdt3, IVAf, IVAdct) = IV
 
     (; p_dct2_dim2, p_dct2_dim1, p_dct3_dim2, p_dct3_dim1, p_dct2_N, p_dct3_N1, p_dct3_N2)= IVAdct
 
-    (; chebcoef, ufin, ζ₁, ζ₂, ζ₂coeff, UV, UFV, ζv, ζfv₁, ζfv₂, CNnr,  TzT) = IVAf
+    (; chebcoef, ufin, ζ₁, ζ₂, ζ₂coeff, UV, UFV, ζv, ζfv₁, ζfv₂, CNnr, TzT) = IVAf
 
-    (; N, Np, Cs, M, Mbd) = IV1
+    #Mₛ and Fsvec in IV1
+    (; N, Np, Cs, M, Mbd, Mₛ, Fsvec) = IV1
 
     (; nr, fwr, nrp, zx, zt, zy, Df) = IVr
 
@@ -187,6 +189,8 @@ function Ax!(v::AbstractVector{Float64}, u::AbstractVector{Float64}, IntS::Matri
     end
 
     # ----- STEP 2: Singular Integrals over all rows and DLP contributions -----
+    Lₑₙ =  Lp + Mbd * N + 1
+
     @inbounds for row in 1:Lp
 
         ℓ = cld(row, Np)
@@ -198,41 +202,40 @@ function Ax!(v::AbstractVector{Float64}, u::AbstractVector{Float64}, IntS::Matri
 
         @views SI = IntS[:, col] 
 
-        v[row] = Cs * dot(SI, cf)
+        # Singular + constant vec contribution
+        v[row] = Cs * (dot(SI, cf) + u[Lₑₙ] * Fsvec[row]/ Mₛ)
     end
 
-    if s < 0.5
+    Lₚₘ = Lp + 1
+    Lₚₙ = Lp + Mbd * N
 
-        Lₚₘ = Lp + 1
-        Lₚₙ = Lp + Mbd * N
+    @inbounds for row in Lₚₘ:Lₚₙ
 
-        @inbounds for row in Lₚₘ:Lₚₙ
+        k₀ = cld(row - Lp, N)
 
-            k₀ = cld(row - Lp, N)
+        ℓ = d.kd[k₀]
 
-            ℓ = d.kd[k₀]
+        j = row - M * Np - (k₀ - 1) * N
 
-            j = row - M * Np - (k₀ - 1) * N
+        #---- Add singular contributions first ----
+        col = dp.pthgo[M+1] + j - 1 + N * (k₀ - 1)
 
-            #---- Add singular contributions first ----
-            col = dp.pthgo[M+1] + j - 1 + N * (k₀ - 1)
+        @views cf = chebcoef[((ℓ-1)*Np+1):(ℓ*Np)]
 
-            @views cf = chebcoef[((ℓ-1)*Np+1):(ℓ*Np)]
+        @views SI = IntS[:, col]
 
-            @views SI = IntS[:, col]
-
-            v[row] = Cs * dot(SI, cf)
-
-        end
+        # Singular + constant vec contribution
+        v[row] = Cs * (dot(SI, cf) + u[Lₑₙ] * Fsvec[row]/ Mₛ)
 
     end
 
-    #If s<0.5, all values of vector v are now initlized.
-    #If s>=0.5, all rows from 1:Lp of v are now initlized.
+    v[Lₑₙ] = 0
+
+    #all values of vector v are now initlized.
 
     # ----- Contribution from DLP starts here -----
 
-    for ll in 1:Mbd
+    @inbounds for ll in 1:Mbd
         ℓ = d.kd[ll]
         ℓbd = 0
 
@@ -362,9 +365,35 @@ function Ax!(v::AbstractVector{Float64}, u::AbstractVector{Float64}, IntS::Matri
         end
     end
 
-    # ----- STEP 3: Volumetruc Integrals over all rows
-    #               and DLP contributions in interioir  -----
-    for k in 1:M
+    @inbounds for row in Lₚₘ:Lₚₙ
+
+        k₀ = cld(row - M * Np, N)
+
+        #Boundary patch number
+        ptl = d.kd[k₀]
+
+        #Linear index of point on the boundary patch
+        ptj = row - M * Np - (k₀ - 1) * N
+
+        # ---- boundary base term ----
+        for ll = 1:Mbd
+            ℓ = d.kd[ll]
+
+            @views ζvll = ζ₁[1+(ll-1)*N₁:ll*N₁]
+
+            DLP!(kbd₁, d, CT[2, ptj], ptl, y₁, ℓ, μ₀, γt1, γt2)
+
+            @. kbd₁ = kbd₁ * fw₁
+
+            v[row] += dot(ζvll, kbd₁) / (2π)
+        end
+
+        v[row] += u[row] / 2
+
+    end
+
+    # ----- STEP 3: Volumetruc Integrals over all rows -----
+    @inbounds for k in 1:M
         isbdflag = (k in d.kd)
 
         if isbdflag
@@ -373,7 +402,7 @@ function Ax!(v::AbstractVector{Float64}, u::AbstractVector{Float64}, IntS::Matri
 
             hc = d.pths[k].ck1 - d.pths[k].ck0
 
-            Dhc = s>=0.5 ? hc^(s-1) : hc^s 
+            Dhc = hc^s 
 
             #CN .= reshape(chebcoef[(k - 1) * Np + 1 : k * Np], N, N)
             ak = (k - 1) * Np
@@ -386,6 +415,9 @@ function Ax!(v::AbstractVector{Float64}, u::AbstractVector{Float64}, IntS::Matri
             mul!(Ubd, Tz1, CNnr)            # nbd × nr
 
             @. Ubd = Ubd * DJ₂
+
+            # Last row is ∫d^s ϕ
+            v[Lₑₙ] += Dhc * dot(mfw, Ubd, fwr)
         else
             # Zx, Zy: images of Chebyshev grid (zx,zy) on patch k
             mapxy_Dmap!(Zx, Zy, DJ, d, zx, zy, k) # nr×nr Zx, Zy, DJ
@@ -400,9 +432,12 @@ function Ax!(v::AbstractVector{Float64}, u::AbstractVector{Float64}, IntS::Matri
             end
 
             @. Ur = UFV * DJ * Df
+
+            # Last row is ∫d^s ϕ
+            v[Lₑₙ] +=  dot(fwr, Ur, fwr)
         end
 
-        for row in 1:Lp
+        @inbounds for row in 1:Lp
             
             ℓ = cld(row, Np)
             k == ℓ && continue
@@ -421,14 +456,14 @@ function Ax!(v::AbstractVector{Float64}, u::AbstractVector{Float64}, IntS::Matri
                 # ---------- Regular patch case ----------
                 x1 = dp.tgtpts[1, row]
                 x2 = dp.tgtpts[2, row]
-
+                
                 if isbdflag
-                    @. Ker₂ = ((x1 - Zx₂)^2 + (x2 - Zy₂)^2)^(-s)
+                    @. Ker₂ = expm1(-s*log((x1 - Zx₂)^2 + (x2 - Zy₂)^2))
                     @. KIbd = Ker₂ * Ubd
                     v[row] += Cs * Dhc * dot(mfw, KIbd, fwr)
 
                 else
-                    @. Ker = ((x1 - Zx)^2 + (x2 - Zy)^2)^(-s)
+                    @. Ker = expm1(-s*log((x1 - Zx)^2 + (x2 - Zy)^2)) 
                     @. KIr = Ker * Ur
                     # Computes fwr' * KIr * fwr
                     v[row] += Cs * dot(fwr, KIr, fwr)
@@ -437,101 +472,42 @@ function Ax!(v::AbstractVector{Float64}, u::AbstractVector{Float64}, IntS::Matri
             end
         end
 
-        if s < 0.5
+        @inbounds for row in Lₚₘ:Lₚₙ
 
-            Lₚₘ = Lp + 1
-            Lₚₙ = Lp + Mbd * N
+            k₀ = cld(row - Lp, N)
 
-            for row in Lₚₘ:Lₚₙ
+            ℓ = d.kd[k₀]
 
-                k₀ = cld(row - Lp, N)
+            k == ℓ && continue
 
-                ℓ = d.kd[k₀]
+            Ikey = packkey(row, k)
+            col = get(dp.hmap, Ikey, 0)
 
-                k == ℓ && continue
+            if col != 0
+                # ---------- Near-singular patch case ----------
+                @views ck = chebcoef[(k-1)*Np+1:k*Np]
 
-                Ikey = packkey(row, k)
-                col = get(dp.hmap, Ikey, 0)
+                @views NSI = IntS[:, col]
 
-                if col != 0
-                    # ---------- Near-singular patch case ----------
-                    @views ck = chebcoef[(k-1)*Np+1:k*Np]
+                v[row] += Cs * dot(ck, NSI)
+            else
+                # ---------- Regular patch case ----------
+                x1 = dp.tgtpts[1, row]
+                x2 = dp.tgtpts[2, row]
 
-                    @views NSI = IntS[:, col]
+                if isbdflag
+                    @. Ker₂ = expm1(-s * log((x1 - Zx₂)^2 + (x2 - Zy₂)^2))
+                    @. KIbd = Ker₂ * Ubd
+                    v[row] += Cs * Dhc * dot(mfw, KIbd, fwr)
 
-                    v[row] += Cs * dot(ck, NSI)
                 else
-                    # ---------- Regular patch case ----------
-                    x1 = dp.tgtpts[1, row]
-                    x2 = dp.tgtpts[2, row]
-
-                    if isbdflag
-                        @. Ker₂ = ((x1 - Zx₂)^2 + (x2 - Zy₂)^2)^(-s)
-                        @. KIbd = Ker₂ * Ubd
-                        v[row] += Cs * Dhc * dot(mfw, KIbd, fwr)
-
-                    else
-                        @. Ker = ((x1 - Zx)^2 + (x2 - Zy)^2)^(-s)
-                        @. KIr = Ker * Ur
-                        # Computes fwr' * KIr * fwr
-                        v[row] += Cs * dot(fwr, KIr, fwr)
-                    end
-
+                    @. Ker = expm1(-s * log((x1 - Zx)^2 + (x2 - Zy)^2))
+                    @. KIr = Ker * Ur
+                    # Computes fwr' * KIr * fwr
+                    v[row] += Cs * dot(fwr, KIr, fwr)
                 end
+
             end
-
-        end
-    end
-
-    # ----- STEP 4: Remaining boundary rows -----
-    if s >= 0.5
-
-        @inbounds for j in 1:N
-            @views Ct = CT[:, j]
-            @inbounds for k in 1:Mbd
-                row = Lp + (k - 1)*N + j
-                ℓ = d.kd[k]
-                #CN .= reshape(chebcoef[(ℓ - 1) * Np + 1 : ℓ * Np], N, N)
-                aℓ = (ℓ - 1) * Np
-                @inbounds for i in 1:Np
-                    CN[i] = chebcoef[aℓ+i]
-                end
-                #ζv is a vector if size N, temporarily being used!
-                mul!(ζv, CN, Ct)
-                v[row] = sum(ζv) 
-            end
-        end
-
-    else #s<0.5 case
-
-        Lₚₘ = Lp + 1
-        Lₚₙ = Lp + Mbd * N
-
-        for row in Lₚₘ : Lₚₙ
-
-            k₀ = cld(row - M*Np, N)
-            
-            #Boundary patch number
-            ptl = d.kd[k₀]
-
-            #Linear index of point on the boundary patch
-            ptj = row - M*Np - (k₀ - 1) * N
-
-            # ---- boundary base term ----
-            for ll = 1:Mbd
-                ℓ = d.kd[ll]
-
-                @views ζvll = ζ₁[1 + (ll - 1) * N₁ : ll * N₁]
-
-                DLP!(kbd₁, d, CT[2,ptj], ptl, y₁, ℓ, μ₀, γt1, γt2)
-
-                @. kbd₁ = kbd₁ * fw₁
-
-                v[row] += dot(ζvll, kbd₁)/(2π)
-            end
-
-            v[row] += u[row] / 2
-            
         end
 
     end

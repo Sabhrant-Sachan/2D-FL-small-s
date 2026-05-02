@@ -41,9 +41,6 @@ function bvec(d::abstractdomain,dp::domprop,s::Float64,f!::Function
     dwfunc!(fwm, p, z2)   # fwm := dw(z2)
     @. fwm = fw * fwm
 
-    # whether we also fill RHS on boundary points
-    is_s_small = s < 0.5 ? 1 : 0
-
     # ----------- reusable work buffers (singular, size n or n×n) ----------
     d1  = similar(z2)              # n length
     d2  = similar(z2)              # n length
@@ -87,7 +84,7 @@ function bvec(d::abstractdomain,dp::domprop,s::Float64,f!::Function
     # -----------------------------------------------------------------------
     # main loop over target points (interior first, then optional boundary)
     # -----------------------------------------------------------------------
-    last = M * Np + is_s_small * Nd
+    last = M * Np + Nd
 
     bdnsp = dp.pthgo[M+1] + Nd
 

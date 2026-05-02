@@ -1547,7 +1547,6 @@ Notes:
 """
 
 function dfunc(d::disc, k::Int, t::Float64, s::Float64)::Float64
-
   p = d.pths[k]
 
   if p.reg == 5
@@ -1556,28 +1555,24 @@ function dfunc(d::disc, k::Int, t::Float64, s::Float64)::Float64
 
   hc = p.ck1 - p.ck0
   val = (1.0 - p.ck1) + hc * t / 2
-  exp = s ≥ 0.5 ? (s - 1) : s
-  return val^exp
-
+  return val^s
 end
 
 function dfunc!(out::StridedArray{Float64}, d::disc, k::Int, t::StridedArray{Float64}, s::Float64)
-
   p = d.pths[k]
 
   if p.reg == 5
     fill!(out, 1.0)
   else
-    exp = s ≥ 0.5 ? (s - 1) : s
     αc = (p.ck1 - p.ck0) / 2
     βc = 1.0 - p.ck1
+
     @inbounds for i in eachindex(t)
-      out[i] = (muladd(αc,t[i],1.0 - p.ck1))^exp
+      out[i] = muladd(αc, t[i], βc)^s
     end
   end
 
   return nothing
-
 end
 
 """

@@ -8,6 +8,7 @@ function Axbdop!(v::SubArray{Float64}, kI::Int, d::D, dp::domprop,
     (; kbd₁, kbd₂, γx, μ₀, γt1, γt2) = IVbdt2
     (; Lᵢₙ, xvals, fvals, γxbd, kdx, Tbd) = IVbdt3
     (; coeffs) = IVbdth
+    CT = IVbt2.CT
 
     # v is M*Np + Mbd*N by N matrix (preallocated given)
     # that is, size(v) == (M*Np + Mbd*N, N)
@@ -21,7 +22,8 @@ function Axbdop!(v::SubArray{Float64}, kI::Int, d::D, dp::domprop,
 
     # --------- interior rows  ---------
     Lₚ = M * Np
-
+    Lₚₘ = Lₚ + 1
+    Lₚₙ = Lₚ + Mbd * N
     ℓbd = 0
 
     @inbounds for row in 1:Lₚ
@@ -154,32 +156,27 @@ function Axbdop!(v::SubArray{Float64}, kI::Int, d::D, dp::domprop,
 
     end
 
-    if s<0.5
+    @inbounds for row in Lₚₘ:Lₚₙ
 
-        Lₚₘ = Lₚ + 1
-        Lₚₙ = Lₚ + Mbd * N
-        CT = IVbt2.CT
+        k₀ = cld(row - M * Np, N)
 
-        for row in Lₚₘ : Lₚₙ
+        ptl = d.kd[k₀]
 
-            k₀ = cld(row - M*Np, N)
-            
-            ptl = d.kd[k₀]
+        ptj = row - M * Np - (k₀ - 1) * N
 
-            ptj = row - M*Np - (k₀ - 1) * N
+        rview = @view v[row, :]
 
-            rview = @view v[row, :]
+        DLP!(kbd₁, d, CT[2, ptj], ptl, y₁, k, μ₀, γt1, γt2)
 
-            DLP!(kbd₁, d, CT[2,ptj], ptl, y₁, k, μ₀, γt1, γt2)
+        @. kbd₁ = kbd₁ * fw₁
 
-            @. kbd₁ = kbd₁ * fw₁
-
-            mul!(rview, transpose(idctbd₁), kbd₁, 1/(2π), 0.0)
-        end
-        #The limiting value from the interioir is 1/2,
-        for j in 1:N
-            v[Lₚ+N*(kI-1)+j, j] += 0.5
-        end
+        mul!(rview, transpose(idctbd₁), kbd₁, 1 / (2π), 0.0)
     end
+
+    #The limiting value from the interioir is 1/2,
+    @inbounds for j in 1:N
+        v[Lₚ+N*(kI-1)+j, j] += 0.5
+    end
+
 
 end

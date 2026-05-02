@@ -4,9 +4,9 @@ function Axbdpth!(v::SubArray{Float64}, kM::Int, IntS::Matrix{Float64},
     # --------- Unpack IV (NamedTuple) ---------
     (; IV1, IVr, IVbdth, IVbt1, IVbt2) = IV
     (; N, Np, Cs, M, Mbd, nbd) = IV1
-    (; zx2, zy2, coeffs, coeffs_sum) = IVbdth
+    (; zx2, zy2, coeffs) = IVbdth
     (; Zx₂, Zy₂, DJ₂, KIbd) = IVbt1
-    (; mfw, CT, B1bd, B2bd, Gbdtmp, Gbd, Wbd) = IVbt2
+    (; mfw, B1bd, B2bd, Gbdtmp, Gbd, Wbd) = IVbt2
 
     (; nr, fwr) = IVr
     # v is M*Np + Mbd*N by Np matrix (preallocated given)
@@ -15,13 +15,15 @@ function Axbdpth!(v::SubArray{Float64}, kM::Int, IntS::Matrix{Float64},
     # --------- Compute regular patch (kM) ---------
     # Zx₂, Zy₂: images of Chebyshev grid (zx2,zy2) on patch kM
     # Determinant of map and distance function on regular patch
+    Lₚ = M * Np
+    Lₚₘ = Lₚ + 1
+    Lₚₙ = Lₚ + Mbd * N
+
     mapxy_Dmap!(Zx₂, Zy₂, DJ₂, d, zx2, zy2, kM) # nr×nr Zx₂, Zy₂, DJ₂
 
     hc = d.pths[kM].ck1 - d.pths[kM].ck0
 
-    Dhc = s>=0.5 ? hc^(s-1) : hc^s 
-
-    Cs₂ = Cs * Dhc
+    Cs₂ = Cs * hc^s 
 
     @inbounds for j in 1:nr
         @inbounds for i in 1:nbd
@@ -29,8 +31,15 @@ function Axbdpth!(v::SubArray{Float64}, kM::Int, IntS::Matrix{Float64},
         end
     end
 
+    mul!(Gbdtmp, B1bd', Wbd)  # N × nr
+    mul!(Gbd, Gbdtmp, B2bd) # N × N
+
+    @inbounds for jj in 1:Np
+        v[Lₚₙ + 1, jj] = hc^s * Gbd[jj]
+    end
+
     # --------- interior rows  ---------
-    Lₚ = M * Np
+
 
     @inbounds for row in 1:Lₚ
 
@@ -98,7 +107,7 @@ function Axbdpth!(v::SubArray{Float64}, kM::Int, IntS::Matrix{Float64},
                         dx = x1 - Zx₂[ii, jj]
                         dy = x2 - Zy₂[ii, jj]
                         r2 = dx * dx + dy * dy
-                        KIbd[ii, jj] = Wbd[ii, jj] / (r2^s)
+                        KIbd[ii, jj] = Wbd[ii, jj] * expm1(-s*log(r2))
                     end
                 end
                 # Gbd = B1bd' * W * B2bd
@@ -116,50 +125,44 @@ function Axbdpth!(v::SubArray{Float64}, kM::Int, IntS::Matrix{Float64},
     #will be non-zero and will therefore play a role 
     #in boundary equations
     # --------- Part 2: boundary rows ---------
-    Lₚₘ = Lₚ + 1
-    Lₚₙ = Lₚ + Mbd * N
 
-    if s >= 0.5
+    @inbounds for row in Lₚₘ:Lₚₙ
 
-        @inbounds for row in Lₚₘ:Lₚₙ
+        k₀ = cld(row - M * Np, N)
 
-            k₀ = cld(row - M*Np, N)
+        l, j = d.kd[k₀], row - M * Np - (k₀ - 1) * N
 
-            l, j = d.kd[k₀],  row - M*Np - (k₀ - 1)*N
+        if l == kM
+            # ---------- Singular patch ----------
+            col = dp.pthgo[M+1] + j - 1 + N * (k₀ - 1)
 
-            if l == kM
+            @views SI = IntS[:, col]  # length Np vector
 
-                @views CTj = CT[:, j]
+            @views IM = reshape(SI, N, N) # Integral matrix
 
-                @inbounds for j2 in 1:N
+            @inbounds for jj in 1:Np
 
-                    @views c2 = coeffs[:, j2]
+                q, r = divrem(jj - 1, N)
+                j1 = r + 1     # remainder
+                j2 = q + 1     # quotient
 
-                    c2_dot_CTj = dot(c2, CTj)
+                @views c1 = coeffs[:, j1]
+                @views c2 = coeffs[:, j2]
 
-                    aj = (j2 - 1) * N
-
-                    for j1 in 1:N
-                        v[row, aj + j1] = coeffs_sum[j1] * c2_dot_CTj
-                    end
-                end
+                #mul!(CN, c1, c2')
+                #v[row, jj] = Cs * dot(CN, IM)
+                v[row, jj] = Cs * dot(c1, IM, c2)
             end
-        end
-    else
 
-        @inbounds for row in Lₚₘ:Lₚₙ
+        else
+            Ikey = packkey(row, kM)
+            col = get(dp.hmap, Ikey, 0)
 
-            k₀ = cld(row - M*Np, N)
+            if col != 0
 
-            l, j = d.kd[k₀],  row - M*Np - (k₀ - 1)*N
+                @views NSI = IntS[:, col]
 
-            if l == kM
-                # ---------- Singular patch ----------
-                col = dp.pthgo[M+1] + j - 1 + N * (k₀ - 1)
-
-                @views SI = IntS[:, col]  # length Np vector
-
-                @views IM = reshape(SI, N, N) # Integral matrix
+                @views IM = reshape(NSI, N, N)
 
                 @inbounds for jj in 1:Np
 
@@ -176,54 +179,28 @@ function Axbdpth!(v::SubArray{Float64}, kM::Int, IntS::Matrix{Float64},
                 end
 
             else
-                Ikey = packkey(row, kM)
-                col = get(dp.hmap, Ikey, 0)
+                x1 = dp.tgtpts[1, row]
+                x2 = dp.tgtpts[2, row]
 
-                if col != 0
-
-                    @views NSI = IntS[:, col]
-
-                    @views IM = reshape(NSI, N, N)
-
-                    @inbounds for jj in 1:Np
-
-                        q, r = divrem(jj - 1, N)
-                        j1 = r + 1     # remainder
-                        j2 = q + 1     # quotient
-
-                        @views c1 = coeffs[:, j1]
-                        @views c2 = coeffs[:, j2]
-
-                        #mul!(CN, c1, c2')
-                        #v[row, jj] = Cs * dot(CN, IM)
-                        v[row, jj] = Cs * dot(c1, IM, c2)
+                # Build W = diag(mfw) * (Ker₂ .* DJ₂) * diag(fwr)
+                @inbounds for jj in 1:nr
+                    @inbounds for ii in 1:nbd
+                        dx = x1 - Zx₂[ii, jj]
+                        dy = x2 - Zy₂[ii, jj]
+                        r2 = dx * dx + dy * dy
+                        KIbd[ii, jj] = Wbd[ii, jj] * expm1(-s*log(r2))
                     end
+                end
 
-                else
-                    x1 = dp.tgtpts[1, row]
-                    x2 = dp.tgtpts[2, row]
+                # Gbd = B1bd' * W * B2bd
+                mul!(Gbdtmp, B1bd', KIbd)  # N × nr
+                mul!(Gbd, Gbdtmp, B2bd)    # N × N
 
-                    # Build W = diag(mfw) * (Ker₂ .* DJ₂) * diag(fwr)
-                    @inbounds for jj in 1:nr
-                        @inbounds for ii in 1:nbd
-                            dx = x1 - Zx₂[ii, jj]
-                            dy = x2 - Zy₂[ii, jj]
-                            r2 = dx * dx + dy * dy
-                            KIbd[ii, jj] = Wbd[ii, jj] / (r2^s)
-                        end
-                    end
-
-                    # Gbd = B1bd' * W * B2bd
-                    mul!(Gbdtmp, B1bd', KIbd)  # N × nr
-                    mul!(Gbd, Gbdtmp, B2bd)    # N × N
-
-                    @inbounds for jj in 1:Np
-                        v[row, jj] = Cs₂ * Gbd[jj]
-                    end
+                @inbounds for jj in 1:Np
+                    v[row, jj] = Cs₂ * Gbd[jj]
                 end
             end
         end
-
     end
 
     return nothing

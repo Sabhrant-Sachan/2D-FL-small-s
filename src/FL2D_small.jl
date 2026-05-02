@@ -38,6 +38,7 @@ include("compressvars.jl")
 # Core assembly pieces
 include("domprop.jl")
 include("bvec.jl")
+include("Fsvec.jl")
 include("precomps.jl")
 
 # Matrix assembly kernels

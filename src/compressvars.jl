@@ -123,9 +123,6 @@ function compress_vars(d::abstractdomain, N::Int, s::Float64,
     for j in 2:Lᵢₙ
         xvals[j] = δclsbd * j / 2 
     end
-    #2nd value slighty bigger than δclsbd
-    #comment this line if you want to match matlab
-    #xvals[2] += 1e-10 #<--- I don't do this in matlab
     fvals = Vector{Float64}(undef, Lᵢₙ)
     γxbd  = Vector{Float64}(undef, 2)
     kdx   = Vector{Int}(undef, 2*dₙₕ + 1)
@@ -144,23 +141,40 @@ function compress_vars(d::abstractdomain, N::Int, s::Float64,
     Zy₂ = Matrix{Float64}(undef, nbd, nr)
     DJ₂ = Matrix{Float64}(undef, nbd, nr)
     mfw = Vector{Float64}(undef, nbd)
+    Mₛ = 0 
 
-    if s>=0.5
-        qw2func!(mfw, p, z1, s)
+    dwfunc!(mfw, p, z1)
 
-        @. mfw = fwbd * mfw
+    tmpbd = Vector{Float64}(undef, nbd)
 
-    else
-        dwfunc!(mfw, p, z1)
+    wfunc!(tmpbd, p, z1; α=-1.0)
 
-        tmpbd = Vector{Float64}(undef, nbd)
+    @. mfw = fwbd * (tmpbd)^s * mfw
 
-        wfunc!(tmpbd, p, z1; α=-1.0)
+    #Initialize variable Mₛ
+    for k in 1:M
+        isbdflag = (k in d.kd)
 
-        @. mfw = fwbd * (tmpbd)^s * mfw
+        if isbdflag
+            Dmap!(DJ₂, d, zx2, zy2, k)
+
+            hc = d.pths[k].ck1 - d.pths[k].ck0
+
+            Mₛ += hc^s * dot(mfw, DJ₂, fwr)
+        else
+            Dmap!(DJ, d, zx, zy, k) # nr×nr
+
+            dfunc!(Df, d, k, zt, s)
+
+            #Temporarily use Zx
+            @. Zx = Df * DJ
+
+            Mₛ += dot(fwr, Zx, fwr)
+        end
 
     end
 
+    Fsvec = Vector{Float64}(undef, M * Np + Mbd * N) 
     KIbd= Matrix{Float64}(undef, nbd, nr)  # Ker₂ .* Ubd .* DJ₂
     CT = Matrix{Float64}(undef, N, N)
 
@@ -170,7 +184,6 @@ function compress_vars(d::abstractdomain, N::Int, s::Float64,
             CT[q+1, j] = cospi(q * (2j - 1) / (2N))
         end
     end
-
 
     if matrix_form
 
@@ -271,7 +284,7 @@ function compress_vars(d::abstractdomain, N::Int, s::Float64,
         #   Axbdop!, Axbdpth!, Axintpth!
         # I do not pack matrix-free-only buffers or FFTW matrices here.
         # ============================================================
-        IV1 = (N=N, Np=Np, Cs=Cs, M=M, Mbd=Mbd, nbd=nbd)
+        IV1 = (N=N, Np=Np, Cs=Cs, M=M, Mbd=Mbd, nbd=nbd, Mₛ=Mₛ, Fsvec=Fsvec)
 
         IVr = (nr=nr, fwr=fwr, nrp=nrp, zx=zx, zt=zt, zy=zy, Df=Df, idctrg=idctrg)
 
@@ -336,7 +349,7 @@ function compress_vars(d::abstractdomain, N::Int, s::Float64,
         # Matrix-free IV Used by Ax!
         # I do not pack matrix-assembly-only data here.
         # ============================================================
-        IV1 = (N=N, Np=Np, Cs=Cs, M=M, Mbd=Mbd)
+        IV1 = (N=N, Np=Np, Cs=Cs, M=M, Mbd=Mbd, Mₛ=Mₛ, Fsvec=Fsvec)
 
         IVr = (nr=nr, fwr=fwr, nrp=nrp, zx=zx, zt=zt, zy=zy, Df=Df)
 
