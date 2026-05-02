@@ -1705,7 +1705,7 @@ Notes:
 - `t` is expected to be **1 - t_actual**
 - `t` may be a scalar `Float64` or any `StridedArray{Float64}`; the return has the same shape.
 """
-function dfunc(d::disc, k::Int, t::Float64, s::Float64)::Float64
+function dfunc(d::ellipse, k::Int, t::Float64, s::Float64)::Float64
   p = d.pths[k]
 
   if p.reg == 5
@@ -1717,7 +1717,7 @@ function dfunc(d::disc, k::Int, t::Float64, s::Float64)::Float64
   return val^s
 end
 
-function dfunc!(out::StridedArray{Float64}, d::disc, k::Int, t::StridedArray{Float64}, s::Float64)
+function dfunc!(out::StridedArray{Float64}, d::ellipse, k::Int, t::StridedArray{Float64}, s::Float64)
   p = d.pths[k]
 
   if p.reg == 5
