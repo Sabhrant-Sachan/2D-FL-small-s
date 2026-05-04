@@ -2,42 +2,38 @@ using Revise, Dates, FL2D_small
 
 using FL2D_small.FLdata
 
-dobenchmark, docondnum = false, false
+dobenchmark, docondnum = false, true
 
-s, p = 0.75, 4
+s, p = 0.01, 4
 
 δ, δclsbd = 0.1, 0.01
 
 dom = FL2D_small.disc(b=[1, 1, 1, 1, 1], L1=0.8, L2=0.8)
 
-Anₚᵣ = [32, 32, 32, 32, 64, 64, 64, 128, 128]
+f!, uex, fv = makediscfuex(0, s);
 
-AN = [3, 4, 5, 6, 7, 8, 9, 10, 12]
+nₚᵣ, N = 128, 10;
 
-f!, uex, fv = makediscfuex(2, s)
+prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
+    dₙₕ=1, (f!)=f!, uex=uex, dom=dom);
 
-for i in 1:9
+opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark, matrixfree=false);
 
-    nₚᵣ, N = Anₚᵣ[i], AN[i]
+core_res = solveFL(prob; opts=opts);
 
-    prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
-        dₙₕ=1, (f!)=f!, uex=uex, dom=dom)
+A = core_res.A; 
 
-    opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark, matrixfree=false)
+println(SolveView(prob, opts, core_res))
 
-    core_res = solveFL(prob; opts=opts)
+#------------- Matrix free --------
 
-    println(SolveView(prob, opts, core_res))
+# opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark, matrixfree=true)
 
-    #------------- Matrix free --------
+# core_res = solveFL(prob; opts=opts)
 
-    opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark, matrixfree=true)
+# println(SolveView(prob, opts, core_res))
 
-    core_res = solveFL(prob; opts=opts)
 
-    println(SolveView(prob, opts, core_res))
-
-end
 
 # Direct vs Matrix Free solver:
 

@@ -3,7 +3,7 @@ function Fsv!(IV::IVT, d::D, dp::domprop, s::Float64, p::Int; n::Int=256) where 
 
     (; IV1, IVr, IVbdth, IVt, IVbt1, IVbt2) = IV
 
-    (; N, Np, Cs, M, Mbd, Fsvec) = IV1
+    (; N, Np, M, Mbd, Fsvec) = IV1
 
     (; fwr, zx, zt, zy, Df) = IVr
 
@@ -56,7 +56,7 @@ function Fsv!(IV::IVT, d::D, dp::domprop, s::Float64, p::Int; n::Int=256) where 
                 if k == ℓ
                     # Singular interior target on patch k.
                     col = dp.pthgo[k] + j - 1
-                    v[row] += Cs * IntS[col]
+                    v[row] += IntS[col]
                     continue
                 end
             else
@@ -67,7 +67,7 @@ function Fsv!(IV::IVT, d::D, dp::domprop, s::Float64, p::Int; n::Int=256) where 
                 if k == ℓ
                     # Singular boundary target on boundary patch k.
                     col = dp.pthgo[M+1] + row - Lp - 1 
-                    v[row] += Cs * IntS[col]
+                    v[row] += IntS[col]
                     continue
                 end
             end
@@ -76,7 +76,7 @@ function Fsv!(IV::IVT, d::D, dp::domprop, s::Float64, p::Int; n::Int=256) where 
             col = get(dp.hmap, Ikey, 0)
             if col != 0
                 # ---------- Near-singular patch case ----------
-                v[row] += Cs * IntS[col]
+                v[row] += IntS[col]
             else
                 # ---------- Regular patch case ----------
                 x1 = dp.tgtpts[1, row]
@@ -85,13 +85,13 @@ function Fsv!(IV::IVT, d::D, dp::domprop, s::Float64, p::Int; n::Int=256) where 
                 if isbdflag
                     @. KIbd = ((x1 - Zx₂)^2 + (x2 - Zy₂)^2)^(-s)
                     @. KIbd = KIbd * DJ₂
-                    v[row] += Cs * Dhc * dot(mfw, KIbd, fwr)
+                    v[row] += Dhc * dot(mfw, KIbd, fwr)
 
                 else
                     @. KIr = ((x1 - Zx)^2 + (x2 - Zy)^2)^(-s)
                     @. KIr = KIr * DJ
                     # Computes fwr' * KIr * fwr
-                    v[row] += Cs * dot(fwr, KIr, fwr)
+                    v[row] += dot(fwr, KIr, fwr)
                 end
 
             end
@@ -100,8 +100,7 @@ function Fsv!(IV::IVT, d::D, dp::domprop, s::Float64, p::Int; n::Int=256) where 
 
     end
 
-    return v
-
+    return nothing
 end
 
 struct ThetaQuad

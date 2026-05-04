@@ -1,4 +1,4 @@
-function precomps(d::abstractdomain, dp::domprop, s::Float64, p::Int
+function precompsLs(d::abstractdomain, dp::domprop, s::Float64, p::Int
     ; n::Int=128)::Matrix{Float64}
 
     #Bookkeeping
@@ -22,68 +22,65 @@ function precomps(d::abstractdomain, dp::domprop, s::Float64, p::Int
         zp2[j] =-2 * sinpi((2 * j - 1) / (4N))^2
     end
 
-    #Parameter q for another polynomial change of variables is theta. 
-    # It is usually taken as 4
-    q = 4
+    # z1 = (1+z)/2, z2 = (1-z)/2 where z = cos(pi*(2j-1)/(2n)) 
+    # are Chebyshev nodes in the interval [-1,1]. This is for 
+    # near singular integrals 
+    #n = n #Maybe n here can be fixed to 128 ? (only for small s)
+    z  = Vector{Float64}(undef, n)
+    z1 = Vector{Float64}(undef, n)
+    z2 = Vector{Float64}(undef, n)
 
-    #Define nodes in radial and weights
-    nr = n     
-    fwr = getF1W(nr)
+    #Store Fejer 1st quadrature weights for near singular integrals
+    fw = getF1W(n)  
 
-    zr = Vector{Float64}(undef, nr)
-    z2r = Vector{Float64}(undef, nr)
+    d1 = Vector{Float64}(undef, n)
+    d2 = Vector{Float64}(undef, n)
 
-    @inbounds for i in 1:nr
-        c₁ = π * (2 * i - 1) / (2 * nr)
-        zr[i] = cos(c₁)
-        z2r[i] = sin(c₁ / 2)^2
+    @inbounds for i in 1:n
+        c₁ = π * (2 * i - 1) / (2 * n)
+        z[i] = cos(c₁)
+        z1[i] = cos(c₁ / 2)^2
+        z2[i] = sin(c₁ / 2)^2
     end
 
-    #Precomputing modified weights
-    fwmr1 = Vector{Float64}(undef, nr)
-    fwmr2 = Vector{Float64}(undef, nr)
-    fwmr3 = Vector{Float64}(undef, nr)
+    wmz₂ = Vector{Float64}(undef, n)
+    wz   = Vector{Float64}(undef, n)
+    wmz  = Vector{Float64}(undef, n)
 
-    #To store w(zr) and w(-z2r)
-    wz1 = Vector{Float64}(undef, nr)
-    wz2 = similar(wz1)
-    wz3 = similar(wz1)
+    wfunc!(wz, p, z) #wz = w(z)
+    wfunc!(wmz, p, z; α=-1.0) #wmz = w(z)
+    wfunc!(wmz₂, p, z2; α=-1.0) #wmz₂ = w(-z2)
 
-    wfunc!(wz1, p, zr)
-    wfunc!(wz2, p, z2r; α=-1.0)
-    wfunc!(wz3, p, zr; α=-1.0)
+    fwm = similar(fw)
+    fwl = similar(fw)
+    dwfunc!(fwl, p, z)
+    dwfunc!(fwm, p, z2)   # fwm := dw(z2)
+    @. fwm = fw * fwm
+    @. fwl = fw * fwl
 
-    qw1func!(fwmr1, p, z2r, s)
-    qw1func!(fwmr3, p, zr, s; α=-1.0)
+    y1  = Vector{Float64}(undef, n)
+    wdf = similar(y1)
+    y1tmp=similar(y1)
+    y2  = similar(y1)
+    t1  = Matrix{Float64}(undef, n, n)  # meshgrid of y1/y2 
+    t2  = Matrix{Float64}(undef, n, n)  # (column = y2[j], row = y1[i])
+    DJ  = Matrix{Float64}(undef, n, n)  # To store the Jacobian
+    DIF = similar(DJ)
+    Zx  = similar(DJ)
+    Zy  = similar(DJ)
 
-    @. fwmr1 = fwr * fwmr1
-    @. fwmr2 = fwr * fwmr3
-    @. fwmr3 = fwr * fwmr3
+    TN_y1 = Matrix{Float64}(undef, n, N)
+    TN_y2 = Matrix{Float64}(undef, n, N)
 
-    # Storage of temporary variables inside the for loop
-    # These are independent on nt
+    TNL = Matrix{Float64}(undef, N, n)
+    TNR = Matrix{Float64}(undef, n, N)
+    A   = Matrix{Float64}(undef, n, n)    
+    Tmp = Matrix{Float64}(undef, N, n)
+    dw  = Vector{Float64}(undef, n)
+    dfy = Vector{Float64}(undef, n)
+
     I = Matrix{Float64}(undef, N, N)
 
-    yr  = Vector{Float64}(undef, nr)
-
-    TNy = Matrix{Float64}(undef, nr, N)
-    dfy = Vector{Float64}(undef, nr)
-
-    #This is nt is the finest one
-    nt = 2*n
-    dfYc= Matrix{Float64}(undef, nt, nr)
-
-    @inbounds for i in 1:nt
-        cθ = sqrt(2) * (cos(QuadT.thet2[i] + π / 4) / QuadT.Cθ₂[i])
-        @inbounds for j in 1:nr
-            dfYc[i, j] = (wz3[j] + cθ * wz1[j])^s
-        end
-    end
-
-    J2  = Matrix{Float64}(undef, nr, N)
-    G   = Matrix{Float64}(undef, nr, N)
-
-    # This is the case when s<0.5
     Lₚ = size(dp.prepts,2) # > dp.pthgo[M+1] - 1
 
     # First we will go over all the points in the interioir
@@ -92,6 +89,17 @@ function precomps(d::abstractdomain, dp::domprop, s::Float64, p::Int
 
     @inbounds for k = 1:M
         Dhc[k] = d.pths[k].ck1 - d.pths[k].ck0
+    end
+
+    # small helpers (no allocations)
+    @inline function fill_meshgrid!(T1, T2, y1, y2)
+        @inbounds for j in eachindex(y2)
+             for i in eachindex(y1)
+                T1[i, j] = y1[i]
+                T2[i, j] = y2[j]
+            end
+        end
+        return nothing
     end
 
     # knbd are patches which are not the boundary patches
@@ -115,167 +123,75 @@ function precomps(d::abstractdomain, dp::domprop, s::Float64, p::Int
         rr = rr + 1
         x1, x2 = zp[rr], zp[qq]
         x2p = zp1[qq]
-        x1m = zp2[rr]
-        x2m = zp2[qq]
-        x̃₃ = -x1m * x2p
-        x̃₄ = x1m * x2m
+        x1m, x2m = zp2[rr], zp2[qq]
+        x̃₃ = -x1m * x2p / 4.0
+        x̃₄ = x1m * x2m / 4.0
 
         # Singular and k is a boundary patch!
         #-----------------3rd part-----------------
-        #------------1ˢᵗ half of part 3------------
-        @. d1 = x1m * Cθ₁
-        @. d2 = x2p * Sθ₁
-        @. yr = x1 - x1m * wz1 / 2
-        y1 .= yr'
-        @. y2 = x2 - x2p * rs₂ / 2
-        
-        ChebyTN!(TNy, N, yr)
 
-        @. dfy = wz3 ^ s
+        @. d1 = x1m * wz / 2.0
+        @. d2 = x2p * wmz₂
+        @. y1 = x1 - d1
+        @. y2 = x2 - d2
+        @. y1tmp = -x1m * wmz / 2.0
 
-        @inbounds for i₂ in 1:N
-            @views Ty = TY[:, :, i₂]
-            ChebyT!(Ty, i₂ - 1, y2)
-        end
+        fill_meshgrid!(t1, t2, y1, y2)
+
+        ChebyTN!(TN_y1, N, y1)
+        ChebyTN!(TN_y2, N, y2)
 
         @inbounds for k in d.kd
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                x1, x2, y1, y2, r₂, d1, d2, k)
 
-            @. J1 = abs(DIF)^(-2 * s) * DJ
+            diff_map!(DIF, Zx, Zy, DJ, d, x1, x2, t1, t2, d1, d2, k)
 
-            c₁ = (Dhc[k] * (-x1m / 4.0))^s
+            dfunc!(dfy, d, k, y1tmp, s)   # dfy = dfac(k, 1-y1)
 
-            J2 .= (c₁ .* dfy .* fwmr2) .* TNy
+            #Left weights: fwl .* dfy .* TN(y1)'
+            @. wdf = fwl * dfy
+            @. TNL = TN_y1' * wdf'
 
-            @inbounds for i₂ in 1:N
-                @views Ty = TY[:, :, i₂]
-                @. Jt = Ty .* J1
-                mul!(view(G, :, i₂), Jt', fwmt2)
-            end
+            # Right weights: TN(y2).*fwm'
+            @. TNR = TN_y2 * fwm   # n×N scaled row-wise
+            # Middle terms together
+            @. A = expm1(-2 * s * log(DIF)) * DJ
 
-            mul!(I, J2', G)
+            mul!(Tmp, TNL, A)   # Tmp = TNL * A   (N×n)
+            mul!(I, Tmp, TNR)   # I   = Tmp * TNR (N×N)
+            
             @inbounds for m in 1:Np
                 IntS[m, dp.pthgo[k]+j-1] += x̃₃ * I[m]
             end
-
         end
 
-        # Singular and k is a boundary patch!
-        #------------2ⁿᵈ half of part 3------------
-        @. d1 = x1m * Sθ₂
-        @. d2 = x2p * Cθ₂
-        @. yr = x2 - x2p * wz1 / 2
-        @. y1 = x1 - x1m * rs₃ / 2
-        y2 .= yr'
-
-        ChebyTN!(TNy, N, yr)
-
-        @inbounds for i₁ in 1:N
-            @views Ty = TY[:, :, i₁]
-            ChebyT!(Ty, i₁ - 1, y1)
-        end
-
-        @inbounds for k in d.kd
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                x1, x2, y1, y2, r₃, d1, d2, k)
-
-            c₁ = (Dhc[k] * (-x1m / 4.0))^s
-
-            @. J1 = c₁ * abs(DIF)^(-2 * s) * DJ * dfYc
-
-            J2 .= fwmr3 .* TNy
-
-            @inbounds for i₁ in 1:N
-                @views Ty = TY[:, :, i₁]
-                @. Jt = Ty .* J1
-                # G[:, i₁] = Jt' * fwmt1
-                mul!(view(G, :, i₁), Jt', fwmt3)
-            end
-
-            # I = G' * J2   (N×nr * nr×N → N×N)
-            mul!(I, G', J2)
-
-            @inbounds  for m in 1:Np
-                IntS[m, dp.pthgo[k]+j-1] += x̃₃ * I[m]
-            end
-        end
-
-        # Singular and k is a boundary patch!
         #-----------------4th part-----------------
-        #------------1ˢᵗ half of part 4------------
-        @. d1 = x1m * Cθ₁
-        @. d2 = x2m * Sθ₁
-        @. yr = x1 - x1m * wz1 / 2
-        y1 .= yr'
-        @. y2 = x2 - x2m * rs₂ / 2
+        #(reuse d1, y1, TN_y1, y1tmp; update d2,y2,t1,t2)
+        @. d2 = x2m * wmz₂
+        @. y2 = x2 - d2
 
-        ChebyTN!(TNy, N, yr)
+        fill_meshgrid!(t1, t2, y1, y2)
 
-        @inbounds for i₂ in 1:N
-            @views Ty = TY[:, :, i₂]
-            ChebyT!(Ty, i₂ - 1, y2)
-        end
+        ChebyTN!(TN_y2, N, y2)
 
         @inbounds for k in d.kd
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                x1, x2, y1, y2, r₂, d1, d2, k)
 
-            @. J1 = abs(DIF)^(-2 * s) * DJ
+            diff_map!(DIF, Zx, Zy, DJ, d, x1, x2, t1, t2, d1, d2, k)
 
-            c₁ = (Dhc[k] * (-x1m / 4.0))^s
+            dfunc!(dfy, d, k, y1tmp, s)   # dfy = dfac(k, 1-y1)
 
-            J2 .= (c₁ .* dfy .* fwmr2) .* TNy
+            #Left weights: fwl .* dfy .* TN(y1)'
+            @. wdf = fwl * dfy
+            @. TNL = TN_y1' * wdf'
 
-            @inbounds for i₂ in 1:N
-                @views Ty = TY[:, :, i₂]
-                @. Jt = Ty .* J1
-                mul!(view(G, :, i₂), Jt', fwmt2)
-            end
+            # Right weights: TN(y2).*fwm'
+            @. TNR = TN_y2 * fwm   # n×N scaled row-wise
+            # Middle terms together
+            @. A = expm1(-2 * s * log(DIF)) * DJ
 
-            mul!(I, J2', G)
-            @inbounds  for m in 1:Np
-                IntS[m, dp.pthgo[k]+j-1] += x̃₄ * I[m]
-            end
-
-        end
-
-        # Singular and k is a boundary patch!
-        #------------2ⁿᵈ half of part 4------------
-        @. d1 = x1m * Sθ₂
-        @. d2 = x2m * Cθ₂
-        @. yr = x2 - x2m * wz1 / 2
-        @. y1 = x1 - x1m * rs₃ / 2
-        y2 .= yr'
-
-        ChebyTN!(TNy, N, yr)
-
-        @inbounds for i₁ in 1:N
-            @views Ty = TY[:, :, i₁]
-            ChebyT!(Ty, i₁ - 1, y1)
-        end
-
-        @inbounds for k in d.kd
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                x1, x2, y1, y2, r₃, d1, d2, k)
-
-            c₁ = (Dhc[k] * (-x1m / 4.0))^s
-
-            @. J1 = c₁ * abs(DIF)^(-2 * s) * DJ * dfYc
-
-            J2 .= fwmr3 .* TNy
-
-            @inbounds for i₁ in 1:N
-                @views Ty = TY[:, :, i₁]
-                @. Jt = Ty .* J1
-                # G[:, i₁] = Jt' * fwmt1
-                mul!(view(G, :, i₁), Jt', fwmt3)
-            end
-
-            # I = G' * J2   (N×nr * nr×N → N×N)
-            mul!(I, G', J2)
-
-            @inbounds  for m in 1:Np
+            mul!(Tmp, TNL, A)   # Tmp = TNL * A   (N×n)
+            mul!(I, Tmp, TNR)   # I   = Tmp * TNR (N×N)
+            
+            @inbounds for m in 1:Np
                 IntS[m, dp.pthgo[k]+j-1] += x̃₄ * I[m]
             end
         end
@@ -294,178 +210,77 @@ function precomps(d::abstractdomain, dp::domprop, s::Float64, p::Int
         x2 = zp[j]
         x2p = zp1[j]
         x2m = zp2[j]
-        x̃₁ = 2.0 * x2p
-        x̃₂ = -2.0 * x2m
+        x̃₁ = x2p / 2.0
+        x̃₂ = -x2m / 2.0
 
         #Singular integration is sum of four parts
         #I1,I2,I3,I4, they are all N*N matrices
         #-----------------1st part-----------------
-        #------------1ˢᵗ half of part 1------------
-        @. d1 = 2.0 * Cθ₁
-        @. d2 = x2p * Sθ₁
-        @. yr = 1.0 - 2.0 * wz2
-        y1 .= yr'
-        @. y2 = x2 - x2p * rs₁
 
-        ChebyTN!(TNy, N, yr)
-        @. yr = 1 - yr
+        @. d1 = 2.0 * wmz₂
+        @. d2 = x2p * wmz₂
+        @. y1 = 1.0 - d1
+        @. y2 = x2 - d2
 
-        @inbounds for i₂ in 1:N
-            @views Ty = TY[:, :, i₂]
-            ChebyT!(Ty, i₂ - 1, y2)
-        end
+        fill_meshgrid!(t1, t2, y1, y2)
+
+        ChebyTN!(TN_y1, N, y1)
+        ChebyTN!(TN_y2, N, y2)
 
         @inbounds for ℓ in 1:Mbd
 
             k = d.kd[ℓ]
 
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                1.0, x2, y1, y2, r₁, d1, d2, k)
+            diff_map!(DIF, Zx, Zy, DJ, d, 1.0, x2, t1, t2, d1, d2, k)
 
-            @. J1 = abs(DIF)^(-2 * s) * DJ
+            dfunc!(dfy, d, k, d1, s)   # dfy = dfac(k, 1-y1=d1)
 
-            dfunc!(dfy, d, k, yr, s)
+            #Left weights: fwm .* dfy .* TN(y1)'
+            @. wdf = fwm * dfy
+            @. TNL = TN_y1' * wdf'
 
-            dfy .*= fwmr1
-            J2 .= dfy .* TNy
+            # Right weights: TN(y2).*fwm'
+            @. TNR = TN_y2 * fwm   # n×N scaled row-wise
+            # Middle terms together
+            @. A = expm1(-2 * s * log(DIF)) * DJ
 
-            @inbounds for i₂ in 1:N
-                @views Ty = TY[:, :, i₂]
-                @. Jt = Ty .* J1
-                mul!(view(G, :, i₂), Jt', fwmt1)
-            end
-
-            mul!(I, J2', G)
-
-            @inbounds  for m in 1:Np
-                IntS[m, Lₚₛ+(ℓ-1)*N+j] += x̃₁ * I[m]
-            end
-        end
-
-        #------------2ⁿᵈ half of part 1------------
-
-        @. d1 = 2.0 * Sθ₁
-        @. d2 = x2p * Cθ₁
-        @. yr = x2 - x2p * wz2
-        @. y1 = 1.0 - 2.0 * rs₁
-        y2 .= yr'
-        @. y1tmp = 1 - y1
-
-        ChebyTN!(TNy, N, yr)
-
-        @inbounds for i₁ in 1:N
-            @views Ty = TY[:, :, i₁]
-            ChebyT!(Ty, i₁ - 1, y1)
-        end
-
-        @inbounds for ℓ in 1:Mbd
-
-            k = d.kd[ℓ]
-
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                1.0, x2, y1, y2, r₁, d1, d2, k)
-
-            dfunc!(dfY, d, k, y1tmp, s)
-
-            @. J1 = abs(DIF)^(-2 * s) * DJ * dfY
-
-            J2 .= fwmr1 .* TNy
-
-            @inbounds for i₁ in 1:N
-                @views Ty = TY[:, :, i₁]
-                @. Jt = Ty .* J1
-                # G[:, i₁] = Jt' * fwmt1
-                mul!(view(G, :, i₁), Jt', fwmt1)
-            end
-
-            # I = G' * J2   (N×nr * nr×N → N×N)
-            mul!(I, G', J2)
-
-            @inbounds  for m in 1:Np
+            mul!(Tmp, TNL, A)   # Tmp = TNL * A   (N×n)
+            mul!(I, Tmp, TNR)   # I   = Tmp * TNR (N×N)
+            
+            @inbounds for m in 1:Np
                 IntS[m, Lₚₛ+(ℓ-1)*N+j] += x̃₁ * I[m]
             end
         end
 
         #-----------------2nd part-----------------
-        #------------1ˢᵗ half of part 2------------
-        @. d1 = 2.0 * Cθ₁
-        @. d2 = x2m * Sθ₁
-        @. yr = 1.0 - 2.0 * wz2
-        y1 .= yr'
-        @. y2 = x2 - x2m * rs₁
+        #(reuse d1, y1, TN_y1; update d2,y2,t1,t2)
+        @. d2 = x2m * wmz₂
+        @. y2 = x2 - d2
 
-        ChebyTN!(TNy, N, yr)
-        @. yr = 1 - yr
+        fill_meshgrid!(t1, t2, y1, y2)
 
-        @inbounds for i₂ in 1:N
-            @views Ty = TY[:, :, i₂]
-            ChebyT!(Ty, i₂ - 1, y2)
-        end
+        ChebyTN!(TN_y2, N, y2)
 
         @inbounds for ℓ in 1:Mbd
 
             k = d.kd[ℓ]
 
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                1.0, x2, y1, y2, r₁, d1, d2, k)
+            diff_map!(DIF, Zx, Zy, DJ, d, 1.0, x2, t1, t2, d1, d2, k)
 
-            @. J1 = abs(DIF)^(-2 * s) * DJ
+            dfunc!(dfy, d, k, d1, s)   # dfy = dfac(k, 1-y1)
 
-            dfunc!(dfy, d, k, yr, s)
+            #Left weights: fwm .* dfy .* TN(y1)'
+            @. wdf = fwm * dfy
+            @. TNL = TN_y1' * wdf'
 
-            dfy .*= fwmr1
-            J2 .= dfy .* TNy
+            # Right weights: TN(y2).*fwm'
+            @. TNR = TN_y2 * fwm   # n×N scaled row-wise
+            # Middle terms together
+            @. A = expm1(-2 * s * log(DIF)) * DJ
 
-            @inbounds for i₂ in 1:N
-                @views Ty = TY[:, :, i₂]
-                @. Jt = Ty .* J1
-                mul!(view(G, :, i₂), Jt', fwmt1)
-            end
-
-            mul!(I, J2', G)
-
-            @inbounds for m in 1:Np
-                IntS[m, Lₚₛ+(ℓ-1)*N+j] += x̃₂ * I[m]
-            end
-        end
-
-        #------------2ⁿᵈ half of part 2------------
-
-        @. d1 = 2.0 * Sθ₁
-        @. d2 = x2m * Cθ₁
-        @. yr = x2 - x2m * wz2
-        @. y1 = 1.0 - 2.0 * rs₁
-        y2 .= yr'
-        @. y1tmp = 1 - y1
-
-        ChebyTN!(TNy, N, yr)
-
-        @inbounds for i₁ in 1:N
-            @views Ty = TY[:, :, i₁]
-            ChebyT!(Ty, i₁ - 1, y1)
-        end
-
-        @inbounds for ℓ in 1:Mbd
-
-            k = d.kd[ℓ]
-
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                1.0, x2, y1, y2, r₁, d1, d2, k)
-
-            dfunc!(dfY, d, k, y1tmp, s)
-
-            @. J1 = abs(DIF)^(-2 * s) * DJ * dfY
-
-            J2 .= fwmr1 .* TNy
-
-            @inbounds for i₁ in 1:N
-                @views Ty = TY[:, :, i₁]
-                @. Jt = Ty .* J1
-                mul!(view(G, :, i₁), Jt', fwmt1)
-            end
-
-            mul!(I, G', J2)
-
+            mul!(Tmp, TNL, A)   # Tmp = TNL * A   (N×n)
+            mul!(I, Tmp, TNR)   # I   = Tmp * TNR (N×N)
+            
             @inbounds for m in 1:Np
                 IntS[m, Lₚₛ+(ℓ-1)*N+j] += x̃₂ * I[m]
             end
@@ -481,337 +296,151 @@ function precomps(d::abstractdomain, dp::domprop, s::Float64, p::Int
         # the patches k. This removes some 
         # repeated calculations and thereby saves 
         # time!
-        qq, rr = divrem(j - 1, N) .+ 1
+        qq, rr = divrem(j - 1, N)
+        qq = qq + 1
+        rr = rr + 1
 
         x1, x2 = zp[rr], zp[qq]
         x1p, x2p = zp1[rr], zp1[qq]
         x1m, x2m = zp2[rr], zp2[qq]
-        x̃₁ = x1p * x2p
-        x̃₂ = -x1p * x2m
-        x̃₃ = -x1m * x2p
-        x̃₄ = x1m * x2m
+        x̃₁ = x1p * x2p / 4.0
+        x̃₂ = -x1p * x2m / 4.0
+        x̃₃ = -x1m * x2p / 4.0
+        x̃₄ = x1m * x2m / 4.0
        
         #Singular integration is sum of four parts
         #I1,I2,I3,I4, they are all N*N matrices
         #-----------------1st part-----------------
-        #------------1ˢᵗ half of part 1------------
-        @. d1 = x1p * Cθ₁
-        @. d2 = x2p * Sθ₁
-        @. yr = x1 - x1p * wz2
-        y1 .= yr'
-        @. y2 = x2 - x2p * rs₁
 
-        ChebyTN!(TNy, N, yr)
-        @. yr = 1 - yr
-
-        @inbounds for i₂ in 1:N
-            @views Ty = TY[:, :, i₂]
-            ChebyT!(Ty, i₂ - 1, y2)
-        end
-
-        @inbounds for k in 1:M
-
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                x1, x2, y1, y2, r₁, d1, d2, k)
-
-            @. J1 = abs(DIF)^(-2 * s) * DJ
-
-            dfunc!(dfy, d, k, yr, s)
-
-            dfy .*= fwmr1
-            J2 .= dfy .* TNy
-
-            @inbounds for i₂ in 1:N
-                @views Ty = TY[:, :, i₂]
-                @. Jt = Ty .* J1
-                mul!(view(G, :, i₂), Jt', fwmt1)
-            end
-
-            mul!(I, J2', G)
-
-            @inbounds for m in 1:Np
-                IntS[m, dp.pthgo[k]+j-1] += x̃₁ * I[m]
-            end
-        end
-
-        #------------2ⁿᵈ half of part 1------------
-
-        @. d1 = x1p * Sθ₁
-        @. d2 = x2p * Cθ₁
-        @. yr = x2 - x2p * wz2
-        @. y1 = x1 - x1p * rs₁
-        y2 .= yr'
+        @. d1 = x1p * wmz₂
+        @. d2 = x2p * wmz₂
+        @. y1 = x1 - d1
+        @. y2 = x2 - d2
         @. y1tmp = 1 - y1
 
-        ChebyTN!(TNy, N, yr)
+        fill_meshgrid!(t1, t2, y1, y2)
 
-        @inbounds for i₁ in 1:N
-            @views Ty = TY[:, :, i₁]
-            ChebyT!(Ty, i₁ - 1, y1)
-        end
+        ChebyTN!(TN_y1, N, y1)
+        ChebyTN!(TN_y2, N, y2)
 
         @inbounds for k in 1:M
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                x1, x2, y1, y2, r₁, d1, d2, k)
 
-            dfunc!(dfY, d, k, y1tmp, s)
+            diff_map!(DIF, Zx, Zy, DJ, d, x1, x2, t1, t2, d1, d2, k)
 
-            @. J1 = abs(DIF)^(-2 * s) * DJ * dfY
+            dfunc!(dfy, d, k, y1tmp, s)   # dfy = dfac(k, 1-y1)
 
-            J2 .= fwmr1 .* TNy
+            #Left weights: fwm .* dfy .* TN(y1)'
+            @. wdf = fwm * dfy
+            @. TNL = TN_y1' * wdf'
 
-            @inbounds for i₁ in 1:N
-                @views Ty = TY[:, :, i₁]
-                @. Jt = Ty .* J1
-                # G[:, i₁] = Jt' * fwmt1
-                mul!(view(G, :, i₁), Jt', fwmt1)
-            end
+            # Right weights: TN(y2).*fwm'
+            @. TNR = TN_y2 * fwm   # n×N scaled row-wise
+            # Middle terms together
+            @. A = expm1(-2 * s * log(DIF)) * DJ
 
-            # I = G' * J2   (N×nr * nr×N → N×N)
-            mul!(I, G', J2)
-
+            mul!(Tmp, TNL, A)   # Tmp = TNL * A   (N×n)
+            mul!(I, Tmp, TNR)   # I   = Tmp * TNR (N×N)
+            
             @inbounds for m in 1:Np
                 IntS[m, dp.pthgo[k]+j-1] += x̃₁ * I[m]
             end
         end
 
         #-----------------2nd part-----------------
-        #------------1ˢᵗ half of part 2------------
-        @. d1 = x1p * Cθ₁
-        @. d2 = x2m * Sθ₁
-        @. yr = x1 - x1p * wz2
-        y1 .= yr'
-        @. y2 = x2 - x2m * rs₁
+        #(reuse d1, y1, TN_y1, y1tmp; update d2,y2,t1,t2)
+        @. d2 = x2m * wmz₂
+        @. y2 = x2 - d2
 
-        ChebyTN!(TNy, N, yr)
-        @. yr = 1 - yr
+        fill_meshgrid!(t1, t2, y1, y2)
 
-        @inbounds for i₂ in 1:N
-            @views Ty = TY[:, :, i₂]
-            ChebyT!(Ty, i₂ - 1, y2)
-        end
+        ChebyTN!(TN_y2, N, y2)
 
         @inbounds for k in 1:M
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                x1, x2, y1, y2, r₁, d1, d2, k)
 
-            @. J1 = abs(DIF)^(-2 * s) * DJ
+            diff_map!(DIF, Zx, Zy, DJ, d, x1, x2, t1, t2, d1, d2, k)
 
-            dfunc!(dfy, d, k, yr, s)
+            dfunc!(dfy, d, k, y1tmp, s)   # dfy = dfac(k, 1-y1)
 
-            dfy .*= fwmr1
-            J2 .= dfy .* TNy
+            #Left weights: fwm .* dfy .* TN(y1)'
+            @. wdf = fwm * dfy
+            @. TNL = TN_y1' * wdf'
 
-            @inbounds for i₂ in 1:N
-                @views Ty = TY[:, :, i₂]
-                @. Jt = Ty .* J1
-                mul!(view(G, :, i₂), Jt', fwmt1)
-            end
+            # Right weights: TN(y2).*fwm'
+            @. TNR = TN_y2 * fwm   # n×N scaled row-wise
+            # Middle terms together
+            @. A = expm1(-2 * s * log(DIF)) * DJ
 
-            mul!(I, J2', G)
-
-            @inbounds for m in 1:Np
-                IntS[m, dp.pthgo[k]+j-1] += x̃₂ * I[m]
-            end
-        end
-
-        #------------2ⁿᵈ half of part 2------------
-
-        @. d1 = x1p * Sθ₁
-        @. d2 = x2m * Cθ₁
-        @. yr = x2 - x2m * wz2
-        @. y1 = x1 - x1p * rs₁
-        y2 .= yr'
-        @. y1tmp = 1 - y1
-
-        ChebyTN!(TNy, N, yr)
-
-        @inbounds for i₁ in 1:N
-            @views Ty = TY[:, :, i₁]
-            ChebyT!(Ty, i₁ - 1, y1)
-        end
-
-        @inbounds for k in 1:M
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                x1, x2, y1, y2, r₁, d1, d2, k)
-
-            dfunc!(dfY, d, k, y1tmp, s)
-
-            @. J1 = abs(DIF)^(-2 * s) * DJ * dfY
-
-            J2 .= fwmr1 .* TNy
-
-            @inbounds for i₁ in 1:N
-                @views Ty = TY[:, :, i₁]
-                @. Jt = Ty .* J1
-                mul!(view(G, :, i₁), Jt', fwmt1)
-            end
-
-            mul!(I, G', J2)
-
+            mul!(Tmp, TNL, A)   # Tmp = TNL * A   (N×n)
+            mul!(I, Tmp, TNR)   # I   = Tmp * TNR (N×N)
+            
             @inbounds for m in 1:Np
                 IntS[m, dp.pthgo[k]+j-1] += x̃₂ * I[m]
             end
         end
 
         #-----------------3rd part-----------------
-        #------------1ˢᵗ half of part 3------------
-        @. d1 = x1m * Cθ₁
-        @. d2 = x2p * Sθ₁
-        @. yr = x1 - x1m * wz2
-        y1 .= yr'
-        @. y2 = x2 - x2p * rs₁
 
-        ChebyTN!(TNy, N, yr)
-        @. yr = 1 - yr
-
-        @inbounds for i₂ in 1:N
-            @views Ty = TY[:, :, i₂]
-            ChebyT!(Ty, i₂ - 1, y2)
-        end
-
-        @inbounds for k in knbd
-
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                x1, x2, y1, y2, r₁, d1, d2, k)
-
-            @. J1 = abs(DIF)^(-2 * s) * DJ
-
-            dfunc!(dfy, d, k, yr, s)
-
-            dfy .*= fwmr1
-            J2 .= dfy .* TNy
-
-            @inbounds for i₂ in 1:N
-                @views Ty = TY[:, :, i₂]
-                @. Jt = Ty .* J1
-                mul!(view(G, :, i₂), Jt', fwmt1)
-            end
-
-            mul!(I, J2', G)
-
-            @inbounds for m in 1:Np
-                IntS[m, dp.pthgo[k]+j-1] += x̃₃ * I[m]
-            end
-        end
-
-        #------------2ⁿᵈ half of part 3------------
-
-        @. d1 = x1m * Sθ₁
-        @. d2 = x2p * Cθ₁
-        @. yr = x2 - x2p * wz2
-        @. y1 = x1 - x1m * rs₁
-        y2 .= yr'
-
+        @. d1 = x1m * wmz₂
+        @. d2 = x2p * wmz₂
+        @. y1 = x1 - d1
+        @. y2 = x2 - d2
         @. y1tmp = 1 - y1
 
-        ChebyTN!(TNy, N, yr)
+        fill_meshgrid!(t1, t2, y1, y2)
 
-        @inbounds for i₁ in 1:N
-            @views Ty = TY[:, :, i₁]
-            ChebyT!(Ty, i₁ - 1, y1)
-        end
+        ChebyTN!(TN_y1, N, y1)
+        ChebyTN!(TN_y2, N, y2)
 
         @inbounds for k in knbd
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                x1, x2, y1, y2, r₁, d1, d2, k)
 
-            dfunc!(dfY, d, k, y1tmp, s)
+            diff_map!(DIF, Zx, Zy, DJ, d, x1, x2, t1, t2, d1, d2, k)
 
-            @. J1 = abs(DIF)^(-2 * s) * DJ * dfY
+            dfunc!(dfy, d, k, y1tmp, s)   # dfy = dfac(k, 1-y1)
 
-            J2 .= fwmr1 .* TNy
+            #Left weights: fwm .* dfy .* TN(y1)'
+            @. wdf = fwm * dfy
+            @. TNL = TN_y1' * wdf'
 
-            @inbounds for i₁ in 1:N
-                @views Ty = TY[:, :, i₁]
-                @. Jt = Ty .* J1
-                # G[:, i₁] = Jt' * fwmt1
-                mul!(view(G, :, i₁), Jt', fwmt1)
-            end
+            # Right weights: TN(y2).*fwm'
+            @. TNR = TN_y2 * fwm   # n×N scaled row-wise
+            # Middle terms together
+            @. A = expm1(-2 * s * log(DIF)) * DJ
 
-            # I = G' * J2   (N×nr * nr×N → N×N)
-            mul!(I, G', J2)
-
+            mul!(Tmp, TNL, A)   # Tmp = TNL * A   (N×n)
+            mul!(I, Tmp, TNR)   # I   = Tmp * TNR (N×N)
+            
             @inbounds for m in 1:Np
                 IntS[m, dp.pthgo[k]+j-1] += x̃₃ * I[m]
             end
         end
 
         #-----------------4th part-----------------
-        #------------1ˢᵗ half of part 4------------
-        @. d1 = x1m * Cθ₁
-        @. d2 = x2m * Sθ₁
-        @. yr = x1 - x1m * wz2
-        y1 .= yr'
-        @. y2 = x2 - x2m * rs₁
+        #(reuse d1, y1, TN_y1, y1tmp; update d2,y2,t1,t2)
+        @. d2 = x2m * wmz₂
+        @. y2 = x2 - d2
 
-        ChebyTN!(TNy, N, yr)
-        @. yr = 1 - yr
+        fill_meshgrid!(t1, t2, y1, y2)
 
-        @inbounds for i₂ in 1:N
-            @views Ty = TY[:, :, i₂]
-            ChebyT!(Ty, i₂ - 1, y2)
-        end
+        ChebyTN!(TN_y2, N, y2)
 
         @inbounds for k in knbd
 
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                x1, x2, y1, y2, r₁, d1, d2, k)
+            diff_map!(DIF, Zx, Zy, DJ, d, x1, x2, t1, t2, d1, d2, k)
 
-            @. J1 = abs(DIF)^(-2 * s) * DJ
+            dfunc!(dfy, d, k, y1tmp, s)   # dfy = dfac(k, 1-y1)
 
-            dfunc!(dfy, d, k, yr, s)
+            #Left weights: fwm .* dfy .* TN(y1)'
+            @. wdf = fwm * dfy
+            @. TNL = TN_y1' * wdf'
 
-            dfy .*= fwmr1
-            J2 .= dfy .* TNy
+            # Right weights: TN(y2).*fwm'
+            @. TNR = TN_y2 * fwm   # n×N scaled row-wise
+            # Middle terms together
+            @. A = expm1(-2 * s * log(DIF)) * DJ
 
-            @inbounds for i₂ in 1:N
-                @views Ty = TY[:, :, i₂]
-                @. Jt = Ty .* J1
-                mul!(view(G, :, i₂), Jt', fwmt1)
-            end
-
-            mul!(I, J2', G)
-
-            @inbounds for m in 1:Np
-                IntS[m, dp.pthgo[k]+j-1] += x̃₄ * I[m]
-            end
-        end
-        #------------2ⁿᵈ half of part 4------------
-        @. d1 = x1m * Sθ₁
-        @. d2 = x2m * Cθ₁
-        @. yr = x2 - x2m * wz2
-        y2 .= yr'
-        @. y1 = x1 - x1m * rs₁
-        @. y1tmp = 1 - y1
-
-        ChebyTN!(TNy, N, yr)
-
-        @inbounds for i₁ in 1:N
-            @views Ty = TY[:, :, i₁]
-            ChebyT!(Ty, i₁ - 1, y1)
-        end
-
-        @inbounds for k in knbd
-            diff_rmap!(DIF, Zx, Zy, DJ, d,
-                x1, x2, y1, y2, r₁, d1, d2, k)
-
-            dfunc!(dfY, d, k, y1tmp, s)
-
-            @. J1 = abs(DIF)^(-2 * s) * DJ * dfY
-
-            J2 .= fwmr1 .* TNy
-
-            @inbounds for i₁ in 1:N
-                @views Ty = TY[:, :, i₁]
-                @. Jt = Ty .* J1
-                # G[:, i₁] = Jt' * fwmt1
-                mul!(view(G, :, i₁), Jt', fwmt1)
-            end
-
-            # I = G' * J2   (N×nr * nr×N → N×N)
-            mul!(I, G', J2)
-
+            mul!(Tmp, TNL, A)   # Tmp = TNL * A   (N×n)
+            mul!(I, Tmp, TNR)   # I   = Tmp * TNR (N×N)
+            
             @inbounds for m in 1:Np
                 IntS[m, dp.pthgo[k]+j-1] += x̃₄ * I[m]
             end
@@ -821,62 +450,10 @@ function precomps(d::abstractdomain, dp::domprop, s::Float64, p::Int
 
     #--------------------------------------------
     #----------Near Singular Integration---------
-    # z1 = (1+z)/2, z2 = (1-z)/2 where z = cos(pi*(2j-1)/(2n)) 
-    # are Chebyshev nodes in the interval [-1,1]. This is for 
-    # near singular integrals 
-    #n = n #Maybe n here can be fixed to 128 ? (only for small s)
-    z = Vector{Float64}(undef, n)
-    z1 = Vector{Float64}(undef, n)
-    z2 = Vector{Float64}(undef, n)
-
-    #Store Fejer 1st quadrature weights for near singular integrals
-    fw = getF1W(n)  
-
-    d1 = Vector{Float64}(undef, n)
-    d2 = similar(d1)
-
-    @inbounds for i in 1:n
-        c₁ = π * (2 * i - 1) / (2 * n)
-        z[i] = cos(c₁)
-        z1[i] = cos(c₁ / 2)^2
-        z2[i] = sin(c₁ / 2)^2
-    end
-
-    y1  = Vector{Float64}(undef, n)
-    wdf = similar(y1)
-    y1tmp=similar(y1)
-    y2  = similar(y1)
-    t1  = Matrix{Float64}(undef, n, n)  # meshgrid of y1/y2 
-    t2  = Matrix{Float64}(undef, n, n)  # (column = y2[j], row = y1[i])
-    DJ  = Matrix{Float64}(undef, n, n)  # To store the Jacobian
-    DIF = similar(DJ)
-    Zx  = similar(DJ)
-    Zy  = similar(DJ)
-
-    TN_y1 = Matrix{Float64}(undef, n, N)
-    TN_y2 = Matrix{Float64}(undef, n, N)
-
-    TNL = Matrix{Float64}(undef, N, n)
-    TNR = Matrix{Float64}(undef, n, N)
-    A   = Matrix{Float64}(undef, n, n)    
-    Tmp = Matrix{Float64}(undef, N, n)
-    dw  = Vector{Float64}(undef, n)
-    dfy = Vector{Float64}(undef, n)
-
+    #-------------------------------------------
     I₁ = Matrix{Float64}(undef, N, N)
     I₂ = Matrix{Float64}(undef, N, N)
 
-    #-------------------------------------------
-    # small helpers (no allocations)
-    @inline function fill_meshgrid!(T1, T2, y1, y2)
-        @inbounds for j in eachindex(y2)
-             for i in eachindex(y1)
-                T1[i, j] = y1[i]
-                T2[i, j] = y2[j]
-            end
-        end
-        return nothing
-    end
     #-------------------------------------------
     #A vector of Bool, initialized to true for all
     #indices from 1:Lₚ. They will be updated as 

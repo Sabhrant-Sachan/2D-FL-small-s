@@ -1,4 +1,4 @@
-function bvec(d::abstractdomain,dp::domprop,s::Float64,f!::Function
+function bvec(d::abstractdomain,dp::domprop,f!::Function
     ;n::Int=64)::Vector{Float64}
 
     # n₂ is defined as the number of nodes for integration of regular integrals

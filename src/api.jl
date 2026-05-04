@@ -183,7 +183,7 @@ function _assemble_matrix(dp, d, IntS, s, IV)
         Axbdop!(v, k, d, dp, s, IV)
     end
 
-    for i in 1:Lₚ-1
+    for i in 1:Lp-1
         A[i, Lp] = Cs * Fsvec[i] / Mₛ
     end
 
@@ -200,10 +200,10 @@ function solveFL_core(prob::Problem; opts::Options=Options())
     dp = domprop(prob.N, prob.δ, prob.δclsbd, d)
 
     # precomputations
-    IntS = precomps(d, dp, prob.s, prob.p; n=n)
+    IntS = precompsLs(d, dp, prob.s, prob.p; n=n)
 
     # RHS
-    b = bvec(d, dp, prob.s, prob.f!)
+    b = bvec(d, dp, prob.f!)
 
     # compression vars
     δeff = dp.delclsbd
@@ -213,7 +213,7 @@ function solveFL_core(prob::Problem; opts::Options=Options())
         IV = compress_vars(d, dp.N, prob.s, prob.p, prob.dₙₕ, δeff; matrix_form=false)
 
         #Computation of Fₛ[1] vector
-        Fsv!(IV, d, dp, s, prob.p)
+        Fsv!(IV, d, dp, prob.s, prob.p)
 
         Uapp = copy(b)
         (; N, Np, M, Mbd) = IV.IV1
@@ -242,7 +242,9 @@ function solveFL_core(prob::Problem; opts::Options=Options())
         info = SolveInfo(solver=:gmres, iters=iters, converged=conv, reltol=opts.reltol)
 
         mm = Uapp[end] / IV.IV1.Mₛ
-        @. Uapp = Uapp + mm
+        @inbounds for i in 1: M*Np
+            Uapp[i] += mm
+        end
 
         return CoreResult(dp=dp, d=d, IntS=IntS, A=nothing, b=b, Uapp=Uapp, info=info)
 
@@ -250,8 +252,10 @@ function solveFL_core(prob::Problem; opts::Options=Options())
 
     IV = compress_vars(d, dp.N, prob.s, prob.p, prob.dₙₕ, δeff; matrix_form=true)
 
+    display(IV.IV1.Mₛ)
+    
     #Computation of Fₛ[1] vector
-    Fsv!(IV, d, dp, s, prob.p)
+    Fsv!(IV, d, dp, prob.s, prob.p)
 
     # assemble matrix
     A = _assemble_matrix(dp, d, IntS, prob.s, IV)
@@ -301,8 +305,12 @@ function solveFL_core(prob::Problem; opts::Options=Options())
         GC.gc()
     end
 
-    mm = Uapp[end]/IV.IV1.Mₛ 
-    @. Uapp = Uapp + mm
+    (; Np, M) = IV.IV1
+    
+    mm = Uapp[end] / IV.IV1.Mₛ
+    @inbounds for i in 1:M*Np
+        Uapp[i] += mm
+    end
 
     return CoreResult(dp=dp, d=d, IntS=IntS, A=A, b=b, Uapp=Uapp, info=info)
 
