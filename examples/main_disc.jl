@@ -4,7 +4,7 @@ using FL2D_small.FLdata
 
 dobenchmark, docondnum = false, true
 
-s, p = 0.01, 4
+s, p = 0.25, 4
 
 δ, δclsbd = 0.1, 0.01
 
@@ -20,8 +20,6 @@ prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
 opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark, matrixfree=false);
 
 core_res = solveFL(prob; opts=opts);
-
-A = core_res.A; 
 
 println(SolveView(prob, opts, core_res))
 

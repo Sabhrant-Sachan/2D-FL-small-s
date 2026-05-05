@@ -33,7 +33,7 @@ function Ax!(v::AbstractVector{Float64}, u::AbstractVector{Float64}, IntS::Matri
     (; chebcoef, ufin, ζ₁, ζ₂, ζ₂coeff, UV, UFV, ζv, ζfv₁, ζfv₂, CNnr, TzT) = IVAf
 
     #Mₛ and Fsvec in IV1
-    (; N, Np, Cs, M, Mbd, Mₛ, Fsvec) = IV1
+    (; N, Np, Cs, M, Mbd) = IV1
 
     (; nr, fwr, nrp, zx, zt, zy, Df) = IVr
 
@@ -203,7 +203,7 @@ function Ax!(v::AbstractVector{Float64}, u::AbstractVector{Float64}, IntS::Matri
         @views SI = IntS[:, col] 
 
         # Singular + constant vec contribution
-        v[row] = Cs * (dot(SI, cf) + u[Lₑₙ] * Fsvec[row]/ Mₛ)
+        v[row] = Cs * dot(SI, cf) 
     end
 
     Lₚₘ = Lp + 1
@@ -225,11 +225,9 @@ function Ax!(v::AbstractVector{Float64}, u::AbstractVector{Float64}, IntS::Matri
         @views SI = IntS[:, col]
 
         # Singular + constant vec contribution
-        v[row] = Cs * (dot(SI, cf) + u[Lₑₙ] * Fsvec[row]/ Mₛ)
+        v[row] = Cs * dot(SI, cf) 
 
     end
-
-    v[Lₑₙ] = 0
 
     #all values of vector v are now initlized.
 
@@ -415,9 +413,6 @@ function Ax!(v::AbstractVector{Float64}, u::AbstractVector{Float64}, IntS::Matri
             mul!(Ubd, Tz1, CNnr)            # nbd × nr
 
             @. Ubd = Ubd * DJ₂
-
-            # Last row is ∫d^s ϕ
-            v[Lₑₙ] += Dhc * dot(mfw, Ubd, fwr)
         else
             # Zx, Zy: images of Chebyshev grid (zx,zy) on patch k
             mapxy_Dmap!(Zx, Zy, DJ, d, zx, zy, k) # nr×nr Zx, Zy, DJ
@@ -432,9 +427,6 @@ function Ax!(v::AbstractVector{Float64}, u::AbstractVector{Float64}, IntS::Matri
             end
 
             @. Ur = UFV * DJ * Df
-
-            # Last row is ∫d^s ϕ
-            v[Lₑₙ] +=  dot(fwr, Ur, fwr)
         end
 
         @inbounds for row in 1:Lp

@@ -163,9 +163,9 @@ function _load_uexv(path::String)
 end
 
 function _assemble_matrix(dp, d, IntS, s, IV)
-    (; N, Np, Cs, M, Mbd, Mₛ, Fsvec) = IV.IV1
+    (; N, Np, M, Mbd) = IV.IV1
     Lpn = M * Np
-    Lp  = Lpn + Mbd * N + 1
+    Lp  = Lpn + Mbd * N 
 
     A = zeros(Float64, Lp, Lp)
 
@@ -181,10 +181,6 @@ function _assemble_matrix(dp, d, IntS, s, IV)
     for k in 1:Mbd
         @views v = A[:, Lpn + N*(k-1) + 1 : Lpn + N*k]
         Axbdop!(v, k, d, dp, s, IV)
-    end
-
-    for i in 1:Lp-1
-        A[i, Lp] = Cs * Fsvec[i] / Mₛ
     end
 
     return A
@@ -212,12 +208,9 @@ function solveFL_core(prob::Problem; opts::Options=Options())
         #Matrix free approach is not for domains with holes in it
         IV = compress_vars(d, dp.N, prob.s, prob.p, prob.dₙₕ, δeff; matrix_form=false)
 
-        #Computation of Fₛ[1] vector
-        Fsv!(IV, d, dp, prob.s, prob.p)
-
         Uapp = copy(b)
         (; N, Np, M, Mbd) = IV.IV1
-        Ltot = M * Np + Mbd * N + 1
+        Ltot = M * Np + Mbd * N
         restart_eff = min(opts.restart, Ltot)
 
         # The argument is an in-place function
@@ -241,22 +234,12 @@ function solveFL_core(prob::Problem; opts::Options=Options())
         conv = hasproperty(ch, :isconverged) ? ch.isconverged : false
         info = SolveInfo(solver=:gmres, iters=iters, converged=conv, reltol=opts.reltol)
 
-        mm = Uapp[end] / IV.IV1.Mₛ
-        @inbounds for i in 1: M*Np
-            Uapp[i] += mm
-        end
-
         return CoreResult(dp=dp, d=d, IntS=IntS, A=nothing, b=b, Uapp=Uapp, info=info)
 
     end
 
     IV = compress_vars(d, dp.N, prob.s, prob.p, prob.dₙₕ, δeff; matrix_form=true)
-
-    display(IV.IV1.Mₛ)
     
-    #Computation of Fₛ[1] vector
-    Fsv!(IV, d, dp, prob.s, prob.p)
-
     # assemble matrix
     A = _assemble_matrix(dp, d, IntS, prob.s, IV)
 
@@ -304,14 +287,7 @@ function solveFL_core(prob::Problem; opts::Options=Options())
         A = nothing
         GC.gc()
     end
-
-    (; Np, M) = IV.IV1
     
-    mm = Uapp[end] / IV.IV1.Mₛ
-    @inbounds for i in 1:M*Np
-        Uapp[i] += mm
-    end
-
     return CoreResult(dp=dp, d=d, IntS=IntS, A=A, b=b, Uapp=Uapp, info=info)
 
 end
@@ -490,7 +466,7 @@ function show(io::IO, ::MIME"text/plain", v::SolveView)
     res = solveFL_post(v.prob, v.core; opts=v.opts)
 
     #Everytime show is called, the paraview files are changed!
-    #u_to_paraview(v.core.dp, v.core.d, v.core.Uapp, v.prob.s)
+    u_to_paraview(v.core.dp, v.core.d, v.core.Uapp, v.prob.s)
 
     println(io, "\n----------- Domain -----------")
     try
@@ -514,7 +490,7 @@ function show(io::IO, ::MIME"text/plain", v::SolveView)
     println(io, "Near-singular  points : $n")
 
     if res.cond_num != -1
-        @printf(io, "Cond. num 2-norm: %f\n", res.cond_num)
+        @printf(io, "Cond. num 2-norm: %.2e\n", res.cond_num)
     end
 
     println(io, "\n----------- Solve -----------")

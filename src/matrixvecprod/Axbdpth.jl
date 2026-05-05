@@ -31,13 +31,6 @@ function Axbdpth!(v::SubArray{Float64}, kM::Int, IntS::Matrix{Float64},
         end
     end
 
-    mul!(Gbdtmp, B1bd', Wbd)  # N × nr
-    mul!(Gbd, Gbdtmp, B2bd) # N × N
-
-    @inbounds for jj in 1:Np
-        v[Lₚₙ + 1, jj] = hc^s * Gbd[jj]
-    end
-
     # --------- interior rows  ---------
 
 

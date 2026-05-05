@@ -151,30 +151,6 @@ function compress_vars(d::abstractdomain, N::Int, s::Float64,
 
     @. mfw = fwbd * (tmpbd)^s * mfw
 
-    #Initialize variable Mₛ
-    for k in 1:M
-        isbdflag = (k in d.kd)
-
-        if isbdflag
-            Dmap!(DJ₂, d, zx2, zy2, k)
-
-            hc = d.pths[k].ck1 - d.pths[k].ck0
-
-            Mₛ += hc^s * dot(mfw, DJ₂, fwr)
-        else
-            Dmap!(DJ, d, zx, zy, k) # nr×nr
-
-            dfunc!(Df, d, k, zt, s)
-
-            #Temporarily use Zx
-            @. Zx = Df * DJ
-
-            Mₛ += dot(fwr, Zx, fwr)
-        end
-
-    end
-
-    Fsvec = Vector{Float64}(undef, M * Np + Mbd * N) 
     KIbd= Matrix{Float64}(undef, nbd, nr)  # Ker₂ .* Ubd .* DJ₂
     CT = Matrix{Float64}(undef, N, N)
 
@@ -284,7 +260,7 @@ function compress_vars(d::abstractdomain, N::Int, s::Float64,
         #   Axbdop!, Axbdpth!, Axintpth!
         # I do not pack matrix-free-only buffers or FFTW matrices here.
         # ============================================================
-        IV1 = (N=N, Np=Np, Cs=Cs, M=M, Mbd=Mbd, nbd=nbd, Mₛ=Mₛ, Fsvec=Fsvec)
+        IV1 = (N=N, Np=Np, Cs=Cs, M=M, Mbd=Mbd, nbd=nbd)
 
         IVr = (nr=nr, fwr=fwr, nrp=nrp, zx=zx, zt=zt, zy=zy, Df=Df, idctrg=idctrg)
 
@@ -349,7 +325,7 @@ function compress_vars(d::abstractdomain, N::Int, s::Float64,
         # Matrix-free IV Used by Ax!
         # I do not pack matrix-assembly-only data here.
         # ============================================================
-        IV1 = (N=N, Np=Np, Cs=Cs, M=M, Mbd=Mbd, Mₛ=Mₛ, Fsvec=Fsvec)
+        IV1 = (N=N, Np=Np, Cs=Cs, M=M, Mbd=Mbd)
 
         IVr = (nr=nr, fwr=fwr, nrp=nrp, zx=zx, zt=zt, zy=zy, Df=Df)
 

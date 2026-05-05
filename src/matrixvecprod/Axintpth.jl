@@ -27,13 +27,6 @@ function Axintpth!(v::SubArray{Float64}, kM::Int, IntS::Matrix{Float64},
         end
     end
 
-    mul!(Grgtmp, idctrg', Wrg)  # N × nr
-    mul!(Grg, Grgtmp, idctrg)   # N × N
-
-    @inbounds for jj in 1:Np
-        v[Lₚₙ + 1, jj] = Grg[jj]
-    end
-
     # --------- interior rows  ---------
 
     @inbounds for row in 1:Lₚ

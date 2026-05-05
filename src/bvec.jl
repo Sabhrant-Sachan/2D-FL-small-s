@@ -1,5 +1,4 @@
-function bvec(d::abstractdomain,dp::domprop,f!::Function
-    ;n::Int=64)::Vector{Float64}
+function bvec(d::abstractdomain,dp::domprop,f!::Function;n::Int=64)::Vector{Float64}
 
     # n₂ is defined as the number of nodes for integration of regular integrals
     # fw₂is defined as the Fejer 1st weights for corresponding nodes
@@ -31,7 +30,7 @@ function bvec(d::abstractdomain,dp::domprop,f!::Function
     zy = repeat(z', n₂, 1)
 
     # Initializing b vector
-    b = zeros(Float64, M*Np + Nd + 1) # + 1 for the ∫u variable
+    b = zeros(Float64, M*Np + Nd) 
 
     # modified weights
 

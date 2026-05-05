@@ -1,13 +1,13 @@
-using Revise, FractionalLaplace2D
+using Revise, Dates, FL2D_small
 
-using FractionalLaplace2D.FLdata
+using FL2D_small.FLdata
 
 # =============================================
-s, p = 0.75, 4;
+s, p = 1e-20, 4;
 
 δ, δclsbd = 0.1, 0.01;
 
-dom = FractionalLaplace2D.ellipse(b=[1, 1, 1, 1, 1], R1=1.0, R2=2.0, L1=2.0, L2=0.8);
+dom = FL2D_small.ellipse(b=[1, 1, 1, 1, 1], R1=1.0, R2=2.0, L1=2.0, L2=0.8);
 
 Anₚᵣ = [32, 32, 32, 32, 64, 64, 64, 128, 128];
 
@@ -15,25 +15,25 @@ AN = [3, 4, 5, 6, 7, 8, 9, 10, 12];
 
 f!, uex, fv = makeellipsefuex(2, s);
 
-dobenchmark, docondnum = true, true;
+dobenchmark, docondnum = false, true;
 
-for i in 1:9
+i = 8
 
-    nₚᵣ, N = Anₚᵣ[i], AN[i]
+nₚᵣ, N = Anₚᵣ[i], AN[i]
 
-    prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
-        dₙₕ=1, (f!)=f!, uex=uex, dom=dom);
+prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
+    dₙₕ=1, (f!)=f!, uex=uex, dom=dom);
 
-    opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark )
+opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark)
 
-    core_res = solveFL(prob; opts=opts);
+core_res = solveFL(prob; opts=opts);
 
-    println(SolveView(prob, opts, core_res))
+println(SolveView(prob, opts, core_res))
 
-end
+
 
 # =============================================
-dom =  FractionalLaplace2D.ellipse(b=[2, 2, 2, 2, 2], a=[1, 1, 1, 1, 1], R1=1.0, R2=2.0, L1=2.0, L2=0.8);
+dom =  FL2D_small.ellipse(b=[2, 2, 2, 2, 2], a=[1, 1, 1, 1, 1], R1=1.0, R2=2.0, L1=2.0, L2=0.8);
 
 Anₚᵣ = [128, 128];
 
