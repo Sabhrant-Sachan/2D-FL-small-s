@@ -276,7 +276,7 @@ open("solve_outputs0100_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[2, 2, 2, 2, 2], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -295,7 +295,7 @@ open("solve_outputs0100_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[3, 3, 3, 3, 3], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -314,7 +314,7 @@ open("solve_outputs0100_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[5, 5, 5, 5, 5], a=[3, 3, 3, 3, 4], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -347,7 +347,7 @@ open("solve_outputs0100_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[6, 6, 6, 6, 6], a=[3, 3, 3, 3, 5], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 256, AN[i]
 
@@ -405,7 +405,7 @@ open("solve_outputs0010_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[2, 2, 2, 2, 2], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -424,7 +424,7 @@ open("solve_outputs0010_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[3, 3, 3, 3, 3], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -443,7 +443,7 @@ open("solve_outputs0010_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[5, 5, 5, 5, 5], a=[3, 3, 3, 3, 4], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -476,7 +476,7 @@ open("solve_outputs0010_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[6, 6, 6, 6, 6], a=[3, 3, 3, 3, 5], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 256, AN[i]
 
@@ -534,7 +534,7 @@ open("solve_outputs0001_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[2, 2, 2, 2, 2], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -553,7 +553,7 @@ open("solve_outputs0001_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[3, 3, 3, 3, 3], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -572,7 +572,7 @@ open("solve_outputs0001_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[5, 5, 5, 5, 5], a=[3, 3, 3, 3, 4], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -605,7 +605,7 @@ open("solve_outputs0001_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[6, 6, 6, 6, 6], a=[3, 3, 3, 3, 5], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 256, AN[i]
 
@@ -663,7 +663,7 @@ open("solve_outputs1e_4_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[2, 2, 2, 2, 2], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -682,7 +682,7 @@ open("solve_outputs1e_4_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[3, 3, 3, 3, 3], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -701,7 +701,7 @@ open("solve_outputs1e_4_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[5, 5, 5, 5, 5], a=[3, 3, 3, 3, 4], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -734,7 +734,7 @@ open("solve_outputs1e_4_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[6, 6, 6, 6, 6], a=[3, 3, 3, 3, 5], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 256, AN[i]
 
@@ -792,7 +792,7 @@ open("solve_outputs1e_5_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[2, 2, 2, 2, 2], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -811,7 +811,7 @@ open("solve_outputs1e_5_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[3, 3, 3, 3, 3], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -830,7 +830,7 @@ open("solve_outputs1e_5_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[5, 5, 5, 5, 5], a=[3, 3, 3, 3, 4], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -847,10 +847,23 @@ open("solve_outputs1e_5_direct.txt", "w") do io
 
     end
 
+    nₚᵣ, N = 256, 12
+
+    prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
+        dₙₕ=1, (f!)=f!, uex=uex, dom=dom)
+
+    opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark)
+
+    core_res = solveFL(prob; opts=opts)
+
+    println(io, SolveView(prob, opts, core_res))
+
+    flush(io)
+
     # =============================================
     dom = FL2D_small.disc(b=[6, 6, 6, 6, 6], a=[3, 3, 3, 3, 5], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 256, AN[i]
 
@@ -908,7 +921,7 @@ open("solve_outputs1e_6_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[2, 2, 2, 2, 2], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -927,7 +940,7 @@ open("solve_outputs1e_6_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[3, 3, 3, 3, 3], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -946,7 +959,7 @@ open("solve_outputs1e_6_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[5, 5, 5, 5, 5], a=[3, 3, 3, 3, 4], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -963,10 +976,23 @@ open("solve_outputs1e_6_direct.txt", "w") do io
 
     end
 
+    nₚᵣ, N = 256, 12
+
+    prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
+        dₙₕ=1, (f!)=f!, uex=uex, dom=dom)
+
+    opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark)
+
+    core_res = solveFL(prob; opts=opts)
+
+    println(io, SolveView(prob, opts, core_res))
+
+    flush(io)
+
     # =============================================
     dom = FL2D_small.disc(b=[6, 6, 6, 6, 6], a=[3, 3, 3, 3, 5], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 256, AN[i]
 
@@ -1024,7 +1050,7 @@ open("solve_outputs1e_7_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[2, 2, 2, 2, 2], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1043,7 +1069,7 @@ open("solve_outputs1e_7_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[3, 3, 3, 3, 3], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1062,7 +1088,7 @@ open("solve_outputs1e_7_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[5, 5, 5, 5, 5], a=[3, 3, 3, 3, 4], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1079,10 +1105,23 @@ open("solve_outputs1e_7_direct.txt", "w") do io
 
     end
 
+    nₚᵣ, N = 256, 12
+
+    prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
+        dₙₕ=1, (f!)=f!, uex=uex, dom=dom)
+
+    opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark)
+
+    core_res = solveFL(prob; opts=opts)
+
+    println(io, SolveView(prob, opts, core_res))
+
+    flush(io)
+
     # =============================================
     dom = FL2D_small.disc(b=[6, 6, 6, 6, 6], a=[3, 3, 3, 3, 5], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 256, AN[i]
 
@@ -1140,7 +1179,7 @@ open("solve_outputs1e_8_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[2, 2, 2, 2, 2], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1159,7 +1198,7 @@ open("solve_outputs1e_8_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[3, 3, 3, 3, 3], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1178,7 +1217,7 @@ open("solve_outputs1e_8_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[5, 5, 5, 5, 5], a=[3, 3, 3, 3, 4], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1195,10 +1234,23 @@ open("solve_outputs1e_8_direct.txt", "w") do io
 
     end
 
+    nₚᵣ, N = 256, 12
+
+    prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
+        dₙₕ=1, (f!)=f!, uex=uex, dom=dom)
+
+    opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark)
+
+    core_res = solveFL(prob; opts=opts)
+
+    println(io, SolveView(prob, opts, core_res))
+
+    flush(io)
+
     # =============================================
     dom = FL2D_small.disc(b=[6, 6, 6, 6, 6], a=[3, 3, 3, 3, 5], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 256, AN[i]
 
@@ -1256,7 +1308,7 @@ open("solve_outputs1e_9_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[2, 2, 2, 2, 2], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1275,7 +1327,7 @@ open("solve_outputs1e_9_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[3, 3, 3, 3, 3], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1294,7 +1346,7 @@ open("solve_outputs1e_9_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[5, 5, 5, 5, 5], a=[3, 3, 3, 3, 4], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1311,10 +1363,23 @@ open("solve_outputs1e_9_direct.txt", "w") do io
 
     end
 
+    nₚᵣ, N = 256, 12
+
+    prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
+        dₙₕ=1, (f!)=f!, uex=uex, dom=dom)
+
+    opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark)
+
+    core_res = solveFL(prob; opts=opts)
+
+    println(io, SolveView(prob, opts, core_res))
+
+    flush(io)
+
     # =============================================
     dom = FL2D_small.disc(b=[6, 6, 6, 6, 6], a=[3, 3, 3, 3, 5], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 256, AN[i]
 
@@ -1372,7 +1437,7 @@ open("solve_outputs1e_10_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[2, 2, 2, 2, 2], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1391,7 +1456,7 @@ open("solve_outputs1e_10_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[3, 3, 3, 3, 3], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1410,7 +1475,7 @@ open("solve_outputs1e_10_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[5, 5, 5, 5, 5], a=[3, 3, 3, 3, 4], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1427,10 +1492,23 @@ open("solve_outputs1e_10_direct.txt", "w") do io
 
     end
 
+    nₚᵣ, N = 256, 12
+
+    prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
+        dₙₕ=1, (f!)=f!, uex=uex, dom=dom)
+
+    opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark)
+
+    core_res = solveFL(prob; opts=opts)
+
+    println(io, SolveView(prob, opts, core_res))
+
+    flush(io)
+
     # =============================================
     dom = FL2D_small.disc(b=[6, 6, 6, 6, 6], a=[3, 3, 3, 3, 5], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 256, AN[i]
 
@@ -1488,7 +1566,7 @@ open("solve_outputs1e_11_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[2, 2, 2, 2, 2], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1507,7 +1585,7 @@ open("solve_outputs1e_11_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[3, 3, 3, 3, 3], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1526,7 +1604,7 @@ open("solve_outputs1e_11_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[5, 5, 5, 5, 5], a=[3, 3, 3, 3, 4], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1543,10 +1621,23 @@ open("solve_outputs1e_11_direct.txt", "w") do io
 
     end
 
+    nₚᵣ, N = 256, 12
+
+    prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
+        dₙₕ=1, (f!)=f!, uex=uex, dom=dom)
+
+    opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark)
+
+    core_res = solveFL(prob; opts=opts)
+
+    println(io, SolveView(prob, opts, core_res))
+
+    flush(io)
+
     # =============================================
     dom = FL2D_small.disc(b=[6, 6, 6, 6, 6], a=[3, 3, 3, 3, 5], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 256, AN[i]
 
@@ -1604,7 +1695,7 @@ open("solve_outputs1e_12_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[2, 2, 2, 2, 2], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1623,7 +1714,7 @@ open("solve_outputs1e_12_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[3, 3, 3, 3, 3], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1642,7 +1733,7 @@ open("solve_outputs1e_12_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[5, 5, 5, 5, 5], a=[3, 3, 3, 3, 4], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1659,10 +1750,23 @@ open("solve_outputs1e_12_direct.txt", "w") do io
 
     end
 
+    nₚᵣ, N = 256, 12
+
+    prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
+        dₙₕ=1, (f!)=f!, uex=uex, dom=dom)
+
+    opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark)
+
+    core_res = solveFL(prob; opts=opts)
+
+    println(io, SolveView(prob, opts, core_res))
+
+    flush(io)
+
     # =============================================
     dom = FL2D_small.disc(b=[6, 6, 6, 6, 6], a=[3, 3, 3, 3, 5], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 256, AN[i]
 
@@ -1720,7 +1824,7 @@ open("solve_outputs1e_13_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[2, 2, 2, 2, 2], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1739,7 +1843,7 @@ open("solve_outputs1e_13_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[3, 3, 3, 3, 3], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1758,7 +1862,7 @@ open("solve_outputs1e_13_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[5, 5, 5, 5, 5], a=[3, 3, 3, 3, 4], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1775,10 +1879,23 @@ open("solve_outputs1e_13_direct.txt", "w") do io
 
     end
 
+    nₚᵣ, N = 256, 12
+
+    prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
+        dₙₕ=1, (f!)=f!, uex=uex, dom=dom)
+
+    opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark)
+
+    core_res = solveFL(prob; opts=opts)
+
+    println(io, SolveView(prob, opts, core_res))
+
+    flush(io)
+
     # =============================================
     dom = FL2D_small.disc(b=[6, 6, 6, 6, 6], a=[3, 3, 3, 3, 5], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 256, AN[i]
 
@@ -1836,7 +1953,7 @@ open("solve_outputs1e_14_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[2, 2, 2, 2, 2], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1855,7 +1972,7 @@ open("solve_outputs1e_14_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[3, 3, 3, 3, 3], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1874,7 +1991,7 @@ open("solve_outputs1e_14_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[5, 5, 5, 5, 5], a=[3, 3, 3, 3, 4], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1891,10 +2008,23 @@ open("solve_outputs1e_14_direct.txt", "w") do io
 
     end
 
+    nₚᵣ, N = 256, 12
+
+    prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
+        dₙₕ=1, (f!)=f!, uex=uex, dom=dom)
+
+    opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark)
+
+    core_res = solveFL(prob; opts=opts)
+
+    println(io, SolveView(prob, opts, core_res))
+
+    flush(io)
+
     # =============================================
     dom = FL2D_small.disc(b=[6, 6, 6, 6, 6], a=[3, 3, 3, 3, 5], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 256, AN[i]
 
@@ -1952,7 +2082,7 @@ open("solve_outputs1e_15_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[2, 2, 2, 2, 2], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1971,7 +2101,7 @@ open("solve_outputs1e_15_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[3, 3, 3, 3, 3], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -1990,7 +2120,7 @@ open("solve_outputs1e_15_direct.txt", "w") do io
     # =============================================
     dom = FL2D_small.disc(b=[5, 5, 5, 5, 5], a=[3, 3, 3, 3, 4], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 128, AN[i]
 
@@ -2007,10 +2137,23 @@ open("solve_outputs1e_15_direct.txt", "w") do io
 
     end
 
+    nₚᵣ, N = 256, 12
+
+    prob = Problem(; N=N, nₚᵣ=nₚᵣ, s=s, p=p, δ=δ, δclsbd=δclsbd,
+        dₙₕ=1, (f!)=f!, uex=uex, dom=dom)
+
+    opts = Options(; plot=false, solver=:direct, cond_num=docondnum, benchmark=dobenchmark)
+
+    core_res = solveFL(prob; opts=opts)
+
+    println(io, SolveView(prob, opts, core_res))
+
+    flush(io)
+
     # =============================================
     dom = FL2D_small.disc(b=[6, 6, 6, 6, 6], a=[3, 3, 3, 3, 5], L1=0.8, L2=0.8)
 
-    for i in 1:9
+    for i in 8:9
 
         nₚᵣ, N = 256, AN[i]
 
@@ -2031,6 +2174,7 @@ open("solve_outputs1e_15_direct.txt", "w") do io
 
 end
 #End here
+
 open("solve_outputs1e_16_direct.txt", "w") do io
     # =============================================
     s, p = 1e-16, 4
